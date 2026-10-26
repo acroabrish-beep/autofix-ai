@@ -24,8 +24,6 @@ import { useLearning } from '../hooks/useLearning';
 import { RepairGuide } from '../types';
 import { repairGuidesService } from '../services/database/repairGuides';
 import {
-  localizeLearningCategory,
-  localizeLevel,
   localizeRepairGuide,
   localizeLearningModule
 } from '../lib/localizeContent';
@@ -42,7 +40,8 @@ export const LearningModule = () => {
     const fetchRelated = async () => {
       if (module) {
         try {
-          const guides = await repairGuidesService.listGuides(module.category);
+          // Fetch guides without category filter since category field was removed
+          const guides = await repairGuidesService.listGuides();
           setRelatedGuides(guides.slice(0, 2));
         } catch (err) {
           console.error(err);
@@ -84,16 +83,15 @@ export const LearningModule = () => {
   const isCompleted = progress?.completed || false;
    const progressPercent = Math.max(progress?.progressPercent || 0, started ? 10 : 0);
    const hasStarted = started || progressPercent > 0;
-   const localizedCategory = localizeLearningCategory(localizedModule.category, t);
    const contentParagraphs = localizedModule.content?.trim()
       ? localizedModule.content.trim().split(/\n\s*\n/).filter(Boolean)
       : [
-            t('learning.fallback_p1', { title: localizedModule.title, category: localizedCategory }),
+            t('learning.fallback_p1', { title: localizedModule.title }),
             t('learning.fallback_p2'),
             t('learning.fallback_p3'),
          ];
    const keyConcepts = [
-      t('learning.concept_main', { category: localizedCategory.toLowerCase() }),
+      t('learning.concept_main'),
       t('learning.concept_confirm'),
       t('learning.concept_compare'),
    ];
@@ -120,13 +118,6 @@ export const LearningModule = () => {
 
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Badge variant="secondary" className="bg-brand-teal/20 text-brand-teal border-brand-teal/30">
-                    {localizedCategory}
-                  </Badge>
-                  <span className="text-slate-400 text-sm">•</span>
-                  <span className="text-slate-400 text-sm uppercase tracking-widest font-bold">{localizeLevel(localizedModule.level, t)}</span>
-                </div>
                 <h1 className="text-4xl lg:text-5xl font-bold mb-6">{localizedModule.title}</h1>
                 <p className="text-slate-300 text-lg leading-relaxed mb-8 max-w-xl">
                   {localizedModule.description}
@@ -136,7 +127,7 @@ export const LearningModule = () => {
                    <div className="flex items-center gap-2">
                       <Clock className="w-5 h-5 text-brand-teal" />
                       <span className="font-semibold">
-                        {localizedModule.duration || (localizedModule.estimatedMinutes ? t('learning.minutes', { count: localizedModule.estimatedMinutes }) : t('learning.self_paced'))}
+                        {t('learning.self_paced')}
                       </span>
                    </div>
                    <div className="flex items-center gap-2">

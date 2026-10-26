@@ -34,20 +34,9 @@ export const LearningCard: React.FC<LearningCardProps> = ({ module, progressPerc
              <BarChart className="w-12 h-12" />
           </div>
         )}
-        <div className="absolute top-4 left-4">
-           <Badge variant="secondary" className="shadow-sm">{localizeLearningCategory(localizedModule.category, t)}</Badge>
-        </div>
       </div>
 
       <div className="flex-1">
-        <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />{' '}
-            {localizedModule.duration || (localizedModule.estimatedMinutes ? t('learning.mins', { count: localizedModule.estimatedMinutes }) : '—')}
-          </span>
-          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-          <span>{localizeLevel(localizedModule.level, t)}</span>
-        </div>
         <h3 className="text-xl font-bold text-brand-navy mb-3 group-hover:text-brand-blue transition-colors">
           {localizedModule.title}
         </h3>

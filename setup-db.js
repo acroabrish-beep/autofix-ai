@@ -67,9 +67,7 @@ const COLLECTIONS = [
     attributes: [
       { key: 'title', size: 255 },
       { key: 'description', size: 1000 },
-      { key: 'category', size: 100 },
-      { key: 'duration', size: 50 },
-      { key: 'level', size: 50 },
+      { key: 'translations', size: 10000 },
     ],
   },
   {

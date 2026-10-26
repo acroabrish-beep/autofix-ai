@@ -18,26 +18,19 @@ export interface UserProfile extends Models.Document {
 
 export interface LearningModule extends Models.Document {
   title: string;
-  title_am?: string;
-  title_om?: string;
-  title_sid?: string;
   description: string;
-  description_am?: string;
-  description_om?: string;
-  description_sid?: string;
   category: string;
   level: 'beginner' | 'intermediate' | 'advanced';
   thumbnail?: string;
   content?: string;
-  content_am?: string;
-  content_om?: string;
-  content_sid?: string;
   /** Duration label stored in the `duration` attribute, e.g. "45 min". */
   duration?: string;
   /** Legacy fallback used when `duration` is absent. */
   estimatedMinutes?: number;
   /** Optional — the current collection has no publish flag. */
   isPublished?: boolean;
+  /** JSON string containing translations for all languages: { en: { title, description, content }, am: { ... }, om: { ... }, sid: { ... } } */
+  translations?: string;
 }
 
 export interface LearningProgress extends Models.Document {

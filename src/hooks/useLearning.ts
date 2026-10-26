@@ -11,11 +11,11 @@ export const useLearning = (moduleId?: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchModules = useCallback(async (category?: string) => {
+  const fetchModules = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await learningService.listModules(category);
+      const data = await learningService.listModules();
       setModules(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load learning modules');

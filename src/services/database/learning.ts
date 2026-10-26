@@ -3,14 +3,9 @@ import { LearningModule, LearningProgress } from '../../types';
 import { Permission, Role } from 'appwrite';
 
 export const learningService = {
-  async listModules(category?: string): Promise<LearningModule[]> {
-    const queries: string[] = [];
-    if (category) {
-      queries.push(Query.equal('category', category));
-    }
+  async listModules(): Promise<LearningModule[]> {
     return await databaseService.listDocuments<LearningModule>(
-      COLLECTIONS.LEARNING_MODULES,
-      queries
+      COLLECTIONS.LEARNING_MODULES
     );
   },
 

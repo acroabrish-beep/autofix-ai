@@ -494,6 +494,7 @@ const enPages: PageTranslations = {
     select_vehicle: '1. Select Vehicle',
     no_vehicles: 'No vehicles added to your profile.',
     add_vehicle_first: 'Add Vehicle First',
+    select_vehicle_required: 'Please select a vehicle first',
     describe_problem: '2. Describe the Problem',
     describe_placeholder:
       "Describe the symptoms (e.g., My car cranks but won't start).",
@@ -586,6 +587,7 @@ const amPages: PageTranslations = {
     select_vehicle: '1. ተሽከርካሪ ይምረጡ',
     no_vehicles: 'በመገለጫዎ ውስጥ ምንም ተሽከርካሪ አልተጨመረም።',
     add_vehicle_first: 'መጀመሪያ ተሽከርካሪ ይጨምሩ',
+    select_vehicle_required: 'እባክዎ መጀመሪያ መኪና ይምረጡ',
     describe_problem: '2. ችግሩን ይግለጹ',
     describe_placeholder:
       'ምልክቶቹን ይግለጹ (ለምሳሌ፦ መኪናዬ ይነሳል ግን አይሄድም)።',
@@ -678,6 +680,7 @@ const omPages: PageTranslations = {
     select_vehicle: '1. Konkolaataa Filadhu',
     no_vehicles: 'Profaayilii keessan keessatti konkolaataan hin dabalamne.',
     add_vehicle_first: 'Dursa Konkolaataa Dabali',
+    select_vehicle_required: 'Dursa konkolaataa filadhaa',
     describe_problem: '2. Rakkoo Ibsi',
     describe_placeholder:
       "Alaamota ibsaa (fkn. Konkolaataan koo ka'a garuu hin deemu).",
@@ -770,6 +773,7 @@ const sidPages: PageTranslations = {
     select_vehicle: '1. Konkolaataa Filadhu',
     no_vehicles: 'Profaayilii keessan keessatti konkolaataan hin dabalamne.',
     add_vehicle_first: 'Dursa Konkolaataa Dabali',
+    select_vehicle_required: 'Dursa konkolaataa filadhaa',
     describe_problem: '2. Rakkoo Ibsi',
     describe_placeholder:
       "Alaamoota ibsaa (fkn. Konkolaataan koo ka'a garuu hin deemu).",

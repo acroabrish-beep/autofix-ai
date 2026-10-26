@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import i18n from 'i18next';
 import type { RepairGuide, LearningModule } from '../types';
 
 /** Known learning categories stored in the database. */
@@ -128,43 +129,39 @@ export const localizeRepairGuide = (guide: RepairGuide, t: TFunction): RepairGui
 
 /**
  * Localize a learning module based on the current language.
- * Falls back to English if the localized version is not available.
+ * Parses the translations JSON string and falls back to English if the localized version is not available.
  */
 export const localizeLearningModule = (module: LearningModule, t: TFunction): LearningModule => {
-  const currentLang = t('language') || 'en';
+  const currentLang = i18n.language || 'en';
 
-  const getLocalizedField = (
-    field: string,
-    fieldAm?: string,
-    fieldOm?: string,
-    fieldSid?: string
-  ): string => {
-    switch (currentLang) {
-      case 'am':
-        return fieldAm || field;
-      case 'om':
-        return fieldOm || field;
-      case 'sid':
-        return fieldSid || field;
-      default:
-        return field;
+  // Parse the translations JSON string
+  let translations: Record<string, { title?: string; description?: string; content?: string }> = {};
+  if (module.translations) {
+    try {
+      translations = JSON.parse(module.translations);
+    } catch (e) {
+      console.error('Failed to parse translations JSON:', e);
     }
+  }
+
+  // Get localized content from translations, falling back to base English fields
+  const langTranslations = translations[currentLang] || {};
+  const enTranslations = translations.en || {};
+
+  const getLocalizedField = (baseField: string, translationField?: string): string => {
+    return translationField || baseField;
   };
 
   return {
     ...module,
-    title: getLocalizedField(module.title, module.title_am, module.title_om, module.title_sid),
+    title: getLocalizedField(module.title, langTranslations.title || enTranslations.title),
     description: getLocalizedField(
       module.description,
-      module.description_am,
-      module.description_om,
-      module.description_sid
+      langTranslations.description || enTranslations.description
     ),
     content: getLocalizedField(
       module.content || '',
-      module.content_am,
-      module.content_om,
-      module.content_sid
+      langTranslations.content || enTranslations.content
     ),
   };
 };

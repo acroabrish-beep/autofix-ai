@@ -22,7 +22,8 @@ export const Learning = () => {
         m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
+      // Category filter is no longer available since category field was removed
+      const matchesCategory = activeCategory === 'All';
 
       return matchesSearch && matchesCategory;
     });
