@@ -1,0 +1,8 @@
+# Local env files (never commit real keys)
+.env
+.env.local
+.env.*.local
+
+# Dependencies & build output
+node_modules
+dist
