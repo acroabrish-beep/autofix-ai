@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { appwriteAuth } from '../../services/auth/appwriteAuth';
 import { account } from '../../lib/appwrite';
+import { isNetworkError } from '../../lib/isNetworkError';
 import { profilesService } from '../../services/database/profiles';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
@@ -80,8 +81,15 @@ export const Register = () => {
       // 4. Hydrate the auth context and go straight to the dashboard.
       await refreshUser();
       navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message || t('auth.registration_failed'));
+    } catch (err: unknown) {
+      console.error('Registration failed:', err);
+
+      if (isNetworkError(err)) {
+        setError(t('auth.network_error'));
+      } else {
+        const message = err instanceof Error ? err.message : '';
+        setError(message || t('auth.registration_failed'));
+      }
     } finally {
       setLoading(false);
     }

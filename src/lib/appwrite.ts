@@ -8,9 +8,9 @@ import { Client, Account, Databases, Storage, ID } from 'appwrite';
  *   VITE_APPWRITE_PROJECT_ID   your Appwrite project ID
  *   VITE_APPWRITE_DATABASE_ID  your Appwrite database ID
  */
-const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string | undefined;
-const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string | undefined;
-const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID as string | undefined;
+const endpoint = (import.meta.env.VITE_APPWRITE_ENDPOINT as string | undefined)?.trim();
+const projectId = (import.meta.env.VITE_APPWRITE_PROJECT_ID as string | undefined)?.trim();
+const databaseId = (import.meta.env.VITE_APPWRITE_DATABASE_ID as string | undefined)?.trim();
 const chatCollectionId = import.meta.env.VITE_APPWRITE_COLLECTION_ID as string | undefined;
 
 if (!endpoint || !projectId || !databaseId) {
@@ -21,9 +21,27 @@ if (!endpoint || !projectId || !databaseId) {
   );
 }
 
-export const client = new Client()
-  .setEndpoint(endpoint || 'https://placeholder.appwrite.io/v1')
-  .setProject(projectId || 'placeholder');
+/**
+ * Runtime configuration log.
+ *
+ * Vite inlines `import.meta.env.*` at build time, so deployed values must be
+ * present when Vercel builds the app. If these print as "(not set)" in the
+ * browser console, the production environment variables are missing.
+ */
+console.log(`[Appwrite] Endpoint: ${endpoint ?? '(not set)'}`);
+console.log(`[Appwrite] Project ID: ${projectId ?? '(not set)'}`);
+console.log(`[Appwrite] Database ID: ${databaseId ?? '(not set)'}`);
+
+export const client = new Client();
+
+// Only override the SDK defaults when the values exist. Never fall back to a
+// hardcoded URL/project — a missing config should be visible, not silent.
+if (endpoint) {
+  client.setEndpoint(endpoint);
+}
+if (projectId) {
+  client.setProject(projectId);
+}
 
 export const account = new Account(client);
 export const databases = new Databases(client);

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { appwriteAuth } from '../../services/auth/appwriteAuth';
 import { account } from '../../lib/appwrite';
+import { isNetworkError } from '../../lib/isNetworkError';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
@@ -62,9 +63,15 @@ export const Login = () => {
 
       await refreshUser();
       navigate('/dashboard', { replace: true });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login failed:', err);
-      setError(err?.message || t('auth.invalid_credentials'));
+
+      if (isNetworkError(err)) {
+        setError(t('auth.network_error'));
+      } else {
+        const message = err instanceof Error ? err.message : '';
+        setError(message || t('auth.invalid_credentials'));
+      }
     } finally {
       // Always runs — resolved, rejected, or timed out.
       setIsLoading(false);

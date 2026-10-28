@@ -51,6 +51,7 @@ export const en: AppPageTranslations = {
     have_account: 'Already have an account?',
     invalid_credentials: 'Invalid email or password',
     registration_failed: 'Registration failed',
+    network_error: 'Network error: Please check your connection or try again later.',
     reset_title: 'Reset Password',
     reset_subtitle: "We'll send you a link to recover your account",
     send_reset: 'Send Reset Link',

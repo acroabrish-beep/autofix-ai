@@ -51,6 +51,8 @@ export const sid: AppPageTranslations = {
     have_account: 'Akkaawuntii qabduu?',
     invalid_credentials: 'Imeele yookaan jecha darbi dogoggoraa',
     registration_failed: 'Galmeen hin milkoofne',
+    network_error:
+      "Dogoggora networkii: Maaloo qunnamtii keessan mirkaneessaa yookaan booda irra deebi'ii yaalaa.",
     reset_title: 'Jecha Darbi Haaromsi',
     reset_subtitle: 'Akkaawuntii keessan deebisuuf geessituu isinii ergina',
     send_reset: 'Geessituu Haaromsaa Ergisi',

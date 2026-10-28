@@ -51,6 +51,8 @@ export const om: AppPageTranslations = {
     have_account: 'Herrega qabduu?',
     invalid_credentials: 'Imeelii ykn jecha darbii dogoggoraa',
     registration_failed: 'Galmeen hin milkoofne',
+    network_error:
+      "Dogoggora networkii: Maaloo qunnamtii keessan mirkaneessaa yookaan booda irra deebi'ii yaalaa.",
     reset_title: 'Jecha Darbii Haaromsi',
     reset_subtitle: 'Herrega keessan deebisuuf geessituu isinii ergina',
     send_reset: 'Geessituu Haaromsaa Ergi',

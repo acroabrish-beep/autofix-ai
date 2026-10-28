@@ -51,6 +51,7 @@ export const am: AppPageTranslations = {
     have_account: 'መገለጫ አለዎት?',
     invalid_credentials: 'የተሳሳተ ኢሜይል ወይም የይለፍ ቃል',
     registration_failed: 'ምዝገባ አልተሳካም',
+    network_error: 'የኔትወርክ ስህተት፦ እባክዎ ግንኙነትዎን ያረጋግጡ ወይም በኋላ እንደገና ይሞክሩ።',
     reset_title: 'የይለፍ ቃል ዳግም ያስጀምሩ',
     reset_subtitle: 'መገለጫዎን ለመመለስ አገናኝ እንልክልዎታለን',
     send_reset: 'የዳግም ማስጀመሪያ አገናኝ ላክ',

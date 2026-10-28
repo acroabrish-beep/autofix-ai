@@ -5,7 +5,7 @@ import { userVehiclesService } from '../../services/database/userVehicles';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserVehicle, DiagnosticRequest } from '../../types';
 import { Button } from '../ui/Button';
-import { Car, ChevronRight, AlertCircle } from 'lucide-react';
+import { Car, ChevronRight, AlertCircle, Loader2, Plus } from 'lucide-react';
 
 // Values stay in English because they are sent to the diagnostic model.
 const TIMING_OPTIONS = [
@@ -34,6 +34,7 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<UserVehicle[]>([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState(location.state?.vehicleId || '');
   const [description, setDescription] = useState('');
   const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -41,16 +42,26 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
   const [timing, setTiming] = useState('Recently');
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setVehiclesLoading(false);
+      return;
+    }
     let cancelled = false;
 
+    setVehiclesLoading(true);
     userVehiclesService
       .listUserVehicles(user.$id)
       .then((result) => {
-        if (!cancelled) setVehicles(result);
+        if (!cancelled) {
+          setVehicles(result);
+          setVehiclesLoading(false);
+        }
       })
       .catch((error) => {
         console.error('Failed to load vehicles:', error);
+        if (!cancelled) {
+          setVehiclesLoading(false);
+        }
       });
 
     return () => {
@@ -78,38 +89,52 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
         <h3 className="text-xl font-bold text-brand-navy mb-6 flex items-center gap-2">
           <Car className="w-6 h-6 text-brand-teal" /> {t('diagnostics.select_vehicle')}
         </h3>
-        {vehicles.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {vehicles.map((v) => (
-              <button
-                key={v.$id}
-                type="button"
-                onClick={() => setSelectedVehicleId(v.$id)}
-                className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                  selectedVehicleId === v.$id
-                  ? 'border-brand-blue bg-brand-blue/5'
-                  : 'border-slate-100 hover:border-slate-200'
-                }`}
-              >
-                <div className="font-bold text-slate-900">{v.make} {v.model}</div>
-                <div className="text-xs text-slate-500">
-                  {v.year}{v.engine ? ` • ${v.engine}` : ''}
-                </div>
-              </button>
-            ))}
+        {vehiclesLoading ? (
+          <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm font-medium text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin text-brand-blue" />
+            {t('diagnostics.loading_vehicles')}
           </div>
         ) : (
-          <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed text-center">
-            <p className="text-slate-500 mb-4">{t('diagnostics.no_vehicles')}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              type="button"
-              onClick={() => navigate('/vehicles/add')}
-            >
-              {t('diagnostics.add_vehicle_first')}
-            </Button>
-          </div>
+          <>
+            {vehicles.length === 0 && (
+              <Button
+                type="button"
+                size="lg"
+                className="mb-4 w-full gap-2 py-6 text-lg"
+                onClick={() => navigate('/vehicles/add')}
+              >
+                <Plus className="h-5 w-5" />
+                {t('diagnostics.add_vehicle_first')}
+              </Button>
+            )}
+
+            {vehicles.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {vehicles.map((v) => (
+                  <button
+                    key={v.$id}
+                    type="button"
+                    onClick={() => setSelectedVehicleId(v.$id)}
+                    aria-pressed={selectedVehicleId === v.$id}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                      selectedVehicleId === v.$id
+                      ? 'border-brand-blue bg-brand-blue/5'
+                      : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="font-bold text-slate-900">{v.make} {v.model}</div>
+                    <div className="text-xs text-slate-500">
+                      {v.year}{v.engine ? ` • ${v.engine}` : ''}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 bg-slate-50 rounded-2xl border-2 border-dashed text-center">
+                <p className="text-slate-500">{t('diagnostics.no_vehicles')}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -165,7 +190,7 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
       </div>
 
       <div className="pt-12">
-        {!selectedVehicleId && vehicles.length > 0 && (
+        {!selectedVehicleId && (vehicles.length > 0 || description.trim().length > 0) && (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600" />
             <p className="text-sm font-medium text-amber-800">{t('diagnostics.select_vehicle_required')}</p>
