@@ -491,6 +491,10 @@ const enPages: PageTranslations = {
     view_history: 'View History',
     new_analysis: 'New Analysis',
     analysis_failed: 'Analysis Failed',
+    service_unavailable:
+      'The AI diagnostic service is temporarily unavailable. Please try again in a moment.',
+    disclaimer:
+      'This is informational guidance only. Always consult a qualified mechanic for safety-critical repairs.',
     select_vehicle: '1. Select Vehicle',
     no_vehicles: 'No vehicles added to your profile.',
     loading_vehicles: 'Loading your vehicles...',
@@ -585,6 +589,10 @@ const amPages: PageTranslations = {
     view_history: 'ታሪክ ይመልከቱ',
     new_analysis: 'አዲስ ትንተና',
     analysis_failed: 'ትንተና አልተሳካም',
+    service_unavailable:
+      'የAI ምርመራ አገልግሎት ለጊዜው አይገኝም። እባክዎ ከጥቂት ቆይታ በኋላ እንደገና ይሞክሩ።',
+    disclaimer:
+      'ይህ ለመረጃ ብቻ የሚሆን መመሪያ ነው። ለደህንነት ወሳኝ ጥገናዎች ሁልጊዜ ብቁ መካኒክ ያማክሩ።',
     select_vehicle: '1. ተሽከርካሪ ይምረጡ',
     no_vehicles: 'በመገለጫዎ ውስጥ ምንም ተሽከርካሪ አልተጨመረም።',
     loading_vehicles: 'ተሽከርካሪዎችዎን በመጫን ላይ...',
@@ -679,6 +687,10 @@ const omPages: PageTranslations = {
     view_history: 'Seenaa Ilaali',
     new_analysis: 'Xiinxala Haaraa',
     analysis_failed: 'Xiinxalli Hin Milkoofne',
+    service_unavailable:
+      "Tajaajilli qorannoo AI yeroof hin jiru. Maaloo xinnoo booda irra deebi'ii yaalaa.",
+    disclaimer:
+      "Kun qajeelfama odeeffannoo qofa. Suphaa nageenyaaf murteessaa ta'eef yeroo hunda ogeessa mekaanikii mariisisaa.",
     select_vehicle: '1. Konkolaataa Filadhu',
     no_vehicles: 'Profaayilii keessan keessatti konkolaataan hin dabalamne.',
     loading_vehicles: "Konkolaataa keessan fe'aa jira...",
@@ -773,6 +785,10 @@ const sidPages: PageTranslations = {
     view_history: 'Seenaa Ilaali',
     new_analysis: 'Xiinxala Haaraa',
     analysis_failed: 'Xiinxalli Hin Milkoofne',
+    service_unavailable:
+      "Tajaajilli qorannoo AI yeroof hin jiru. Maaloo xinnoo booda irra deebi'ii yaalaa.",
+    disclaimer:
+      "Kun qajeelfama odeeffannoo qofa. Suphaa nageenyaaf murteessaa ta'eef yeroo hunda ogeessa mekaanikii mariisisaa.",
     select_vehicle: '1. Konkolaataa Filadhu',
     no_vehicles: 'Profaayilii keessan keessatti konkolaataan hin dabalamne.',
     loading_vehicles: "Konkolaataa keessan fe'aa jira...",
