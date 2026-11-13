@@ -5,7 +5,8 @@ import { userVehiclesService } from '../../services/database/userVehicles';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserVehicle, DiagnosticRequest } from '../../types';
 import { Button } from '../ui/Button';
-import { Car, ChevronRight, AlertCircle, Loader2, Plus } from 'lucide-react';
+import { Car, ChevronRight, AlertCircle, Loader2, Plus, Bluetooth } from 'lucide-react';
+import { MOCK_OBD_DATA } from '../../data/mockOBDData';
 
 // Values stay in English because they are sent to the diagnostic model.
 const TIMING_OPTIONS = [
@@ -40,6 +41,13 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [warningLights, setWarningLights] = useState<string[]>([]);
   const [timing, setTiming] = useState('Recently');
+
+  const simulationActive = description.startsWith('Simulated OBD-II Code:');
+
+  const handleSimulateOBD = () => {
+    const selected = MOCK_OBD_DATA[Math.floor(Math.random() * MOCK_OBD_DATA.length)];
+    setDescription(`Simulated OBD-II Code: ${selected.code}. Symptoms: ${selected.symptom}`);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -140,6 +148,26 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
 
       <div className="pt-8 border-t border-slate-100">
         <h3 className="text-xl font-bold text-brand-navy mb-6">{t('diagnostics.describe_problem')}</h3>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSimulateOBD}
+            className="gap-2"
+          >
+            <Bluetooth className="h-4 w-4" />
+            Simulate OBD-II Scan
+          </Button>
+          {simulationActive && (
+            <span className="inline-flex items-center rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-brand-teal border border-teal-200">
+              Simulation Mode Active
+            </span>
+          )}
+        </div>
+        <p className="mb-4 text-xs text-slate-500">
+          For educational demo purposes. No physical hardware required.
+        </p>
         <textarea
           required
           className="w-full min-h-[150px] p-6 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-brand-blue outline-none text-slate-700 placeholder:text-slate-400"
