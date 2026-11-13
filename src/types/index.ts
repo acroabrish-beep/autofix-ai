@@ -103,9 +103,12 @@ export interface DiagnosticRequest {
 export interface DiagnosticSession extends Models.Document {
   userId: string;
   vehicleId: string;
-  userInput: string; // The original description
-  requestData: DiagnosticRequest; // Stored as stringified JSON in DB if necessary, or individual fields
-  result: DiagnosticResponse; // Stored as stringified JSON in DB
+  description: string;
+  aiResponse: string;
+  // Parsed/client-side fields (derived from the stored attributes above)
+  userInput: string;
+  requestData: DiagnosticRequest;
+  result: DiagnosticResponse;
   status: 'active' | 'resolved';
 }
 

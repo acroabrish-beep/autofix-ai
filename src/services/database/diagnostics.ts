@@ -1,6 +1,38 @@
 import { databaseService, COLLECTIONS, Query } from './index';
-import { DiagnosticSession } from '../../types';
+import { DiagnosticSession, DiagnosticResponse } from '../../types';
 import { Permission, Role } from 'appwrite';
+
+function parseDiagnosticResponse(value: unknown): DiagnosticResponse {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as DiagnosticResponse;
+    } catch {
+      return {
+        summary: value,
+        possibleCauses: [],
+        recommendedChecks: [],
+        nextSteps: [],
+        safetyNotes: [],
+        confidence: 0.5,
+        disclaimer: '',
+      };
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    return value as DiagnosticResponse;
+  }
+
+  return {
+    summary: '',
+    possibleCauses: [],
+    recommendedChecks: [],
+    nextSteps: [],
+    safetyNotes: [],
+    confidence: 0.5,
+    disclaimer: '',
+  };
+}
 
 export const diagnosticsService = {
   async listUserSessions(userId: string): Promise<DiagnosticSession[]> {
@@ -9,29 +41,51 @@ export const diagnosticsService = {
       [Query.equal('userId', userId), Query.orderDesc('$createdAt')]
     );
 
-    // Parse JSON fields
-    return sessions.map(s => ({
-      ...s,
-      requestData: typeof s.requestData === 'string' ? JSON.parse(s.requestData) : s.requestData,
-      result: typeof s.result === 'string' ? JSON.parse(s.result) : s.result
-    })) as DiagnosticSession[];
+    return sessions.map((s) => {
+      const description = typeof s.description === 'string' ? s.description : '';
+      const aiResponse =
+        typeof s.aiResponse === 'string' ? s.aiResponse : JSON.stringify(s.aiResponse ?? {});
+
+      return {
+        ...s,
+        userId: s.userId,
+        vehicleId: s.vehicleId,
+        description,
+        aiResponse,
+        result: parseDiagnosticResponse(aiResponse || s.result),
+        userInput: description,
+        requestData: s.requestData ?? {
+          vehicleId: s.vehicleId,
+          description,
+          symptoms: [],
+          timing: 'Recently',
+          warningLights: [],
+        },
+        status: s.status ?? 'active',
+      } as DiagnosticSession;
+    });
   },
 
-  async saveSession(userId: string, data: Omit<DiagnosticSession, keyof import('appwrite').Models.Document | 'userId'>): Promise<DiagnosticSession> {
+  async saveSession(
+    userId: string,
+    data: Omit<DiagnosticSession, keyof import('appwrite').Models.Document | 'userId'>
+  ): Promise<DiagnosticSession> {
     const permissions = [
       Permission.read(Role.user(userId)),
       Permission.update(Role.user(userId)),
       Permission.delete(Role.user(userId)),
     ];
 
-    // Stringify JSON fields for Appwrite storage
+    const description =
+      data.description ?? data.userInput ?? data.requestData?.description ?? '';
+    const result = data.result ?? parseDiagnosticResponse(data.aiResponse);
+    const aiResponse = data.aiResponse ?? JSON.stringify(result);
+
     const payload = {
-      ...data,
       userId,
-      requestData: JSON.stringify(data.requestData),
-      result: JSON.stringify(data.result),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      vehicleId: data.vehicleId,
+      description,
+      aiResponse,
     };
 
     const session = await databaseService.createDocument<any>(
@@ -42,8 +96,20 @@ export const diagnosticsService = {
 
     return {
       ...session,
-      requestData: JSON.parse(session.requestData),
-      result: JSON.parse(session.result)
+      userId,
+      vehicleId: data.vehicleId,
+      description,
+      aiResponse,
+      result,
+      userInput: description,
+      requestData: data.requestData ?? {
+        vehicleId: data.vehicleId,
+        description,
+        symptoms: [],
+        timing: 'Recently',
+        warningLights: [],
+      },
+      status: data.status ?? 'active',
     } as DiagnosticSession;
   },
 
@@ -53,10 +119,29 @@ export const diagnosticsService = {
       sessionId
     );
 
+    const description =
+      typeof session.description === 'string' ? session.description : '';
+    const aiResponse =
+      typeof session.aiResponse === 'string'
+        ? session.aiResponse
+        : JSON.stringify(session.aiResponse ?? {});
+
     return {
       ...session,
-      requestData: typeof session.requestData === 'string' ? JSON.parse(session.requestData) : session.requestData,
-      result: typeof session.result === 'string' ? JSON.parse(session.result) : session.result
+      userId: session.userId,
+      vehicleId: session.vehicleId,
+      description,
+      aiResponse,
+      result: parseDiagnosticResponse(aiResponse || session.result),
+      userInput: description,
+      requestData: session.requestData ?? {
+        vehicleId: session.vehicleId,
+        description,
+        symptoms: [],
+        timing: 'Recently',
+        warningLights: [],
+      },
+      status: session.status ?? 'active',
     } as DiagnosticSession;
   }
 };

@@ -10,6 +10,7 @@
  *   - chat_history      (Users CRUD)
  *   - repair_guides     (Users CRUD)
  *   - vehicles          (Users CRUD)
+ *   - diagnostic_sessions (Users create; owner-only documents)
  *
  * Safe to re-run: existing collections, attributes and permissions are
  * detected and skipped or merged. Attribute creation is asynchronous in
@@ -111,6 +112,19 @@ const COLLECTIONS = [
       { key: 'model', size: 100 },
       { key: 'year', size: 10 },
       { key: 'engine', size: 100 },
+    ],
+  },
+  {
+    id: 'diagnostic_sessions',
+    name: 'Diagnostic Sessions',
+    // Users may create; each document grants read/update/delete to its owner.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'userId', size: 255 },
+      { key: 'vehicleId', size: 255 },
+      { key: 'description', size: 5000 },
+      { key: 'aiResponse', size: 10000 },
     ],
   },
 ];

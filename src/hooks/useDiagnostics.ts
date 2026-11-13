@@ -35,6 +35,8 @@ export const useDiagnostics = () => {
       // 2. Save Session to Appwrite
       const session = await diagnosticsService.saveSession(user.$id, {
         vehicleId: request.vehicleId,
+        description: request.description,
+        aiResponse: JSON.stringify(result),
         userInput: request.description,
         requestData: request,
         result: result,
