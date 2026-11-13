@@ -15,6 +15,7 @@ import {
   LogOut,
   Loader2,
   AlertCircle,
+  Save,
 } from 'lucide-react';
 
 type MechanicTab = 'tasks' | 'diagnostic' | 'history';
@@ -32,13 +33,26 @@ export const MechanicDashboard: React.FC = () => {
   const [history, setHistory] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [taskStatus, setTaskStatus] = useState<Record<string, string>>({});
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
   const loadTasks = async () => {
     if (!garageId) return;
     const result = await databaseService.listDocuments<ServiceRequest>(COLLECTIONS.SERVICE_REQUESTS, [
       Query.equal('garageId', garageId),
     ]);
-    setTasks(result.filter((request) => request.status === 'pending' || request.status === 'in_progress'));
+    const pendingTasks = result.filter((request) => request.status === 'pending' || request.status === 'in_progress');
+    setTasks(pendingTasks);
+
+    const statusMap: Record<string, string> = {};
+    const notesMap: Record<string, string> = {};
+    pendingTasks.forEach((task) => {
+      statusMap[task.$id] = task.status;
+      notesMap[task.$id] = task.notes || '';
+    });
+    setTaskStatus(statusMap);
+    setTaskNotes(notesMap);
   };
 
   const loadHistory = async () => {
@@ -75,6 +89,22 @@ export const MechanicDashboard: React.FC = () => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, garageId]);
+
+  const handleTaskUpdate = async (task: ServiceRequest) => {
+    setSavingTaskId(task.$id);
+    setError(null);
+    try {
+      await databaseService.updateDocument(COLLECTIONS.SERVICE_REQUESTS, task.$id, {
+        status: taskStatus[task.$id] || task.status,
+        notes: taskNotes[task.$id] || '',
+      });
+      await loadTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update task.');
+    } finally {
+      setSavingTaskId(null);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -169,48 +199,103 @@ export const MechanicDashboard: React.FC = () => {
           ) : (
             <>
               {activeTab === 'tasks' && (
-                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-                  <div className="border-b border-slate-800 px-6 py-4">
-                    <h3 className="text-lg font-bold">My Tasks</h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-sm">
-                      <thead className="bg-slate-800/60 text-slate-300">
-                        <tr>
-                          <th className="px-6 py-3 font-semibold">Title</th>
-                          <th className="px-6 py-3 font-semibold">Vehicle</th>
-                          <th className="px-6 py-3 font-semibold">Status</th>
-                          <th className="px-6 py-3 font-semibold">Created</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {tasks.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="px-6 py-10 text-center text-slate-400">
-                              No pending tasks.
-                            </td>
-                          </tr>
-                        ) : (
-                          tasks.map((task) => (
-                            <tr key={task.$id} className="hover:bg-slate-800/40">
-                              <td className="px-6 py-4 font-medium">{task.title}</td>
-                              <td className="px-6 py-4 text-slate-400">{task.vehicleId}</td>
-                              <td className="px-6 py-4">
-                                <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
-                                  {task.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-slate-400">
-                                {task.createdAt
-                                  ? new Date(task.createdAt).toLocaleDateString()
-                                  : new Date(task.$createdAt).toLocaleDateString()}
-                              </td>
-                            </tr>
-                          ))
+                <div className="space-y-6">
+                  {tasks.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+                      No pending tasks.
+                    </div>
+                  ) : (
+                    tasks.map((task) => (
+                      <div
+                        key={task.$id}
+                        className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+                      >
+                        <div className="mb-4 flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="text-lg font-bold">{task.title}</h3>
+                            <p className="text-sm text-slate-400">
+                              Vehicle: {task.vehicleId || '—'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Created:{' '}
+                              {task.createdAt
+                                ? new Date(task.createdAt).toLocaleDateString()
+                                : new Date(task.$createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
+                            {task.status}
+                          </span>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Status
+                            </label>
+                            <select
+                              value={taskStatus[task.$id] || task.status}
+                              onChange={(e) =>
+                                setTaskStatus((prev) => ({
+                                  ...prev,
+                                  [task.$id]: e.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Add Note
+                            </label>
+                            <textarea
+                              value={taskNotes[task.$id] || ''}
+                              onChange={(e) =>
+                                setTaskNotes((prev) => ({
+                                  ...prev,
+                                  [task.$id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Log what you did (e.g., Replaced front brake pads)."
+                              className="min-h-[90px] w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                            />
+                          </div>
+                        </div>
+
+                        {task.notes && (
+                          <div className="mt-4">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                              Saved Notes
+                            </p>
+                            <pre className="whitespace-pre-wrap rounded-xl bg-slate-800/60 p-4 text-sm text-slate-300">
+                              {task.notes}
+                            </pre>
+                          </div>
                         )}
-                      </tbody>
-                    </table>
-                  </div>
+
+                        <div className="mt-4">
+                          <button
+                            type="button"
+                            disabled={savingTaskId === task.$id}
+                            onClick={() => handleTaskUpdate(task)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                          >
+                            {savingTaskId === task.$id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                            Save Update
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
 

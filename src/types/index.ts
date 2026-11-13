@@ -145,6 +145,17 @@ export interface Garage extends Models.Document {
   status: string;
 }
 
+export interface Submission extends Models.Document {
+  assignmentId: string;
+  studentId: string;
+  studentName: string;
+  content: string;
+  status: 'pending' | 'graded';
+  grade: string;
+  feedback: string;
+  submittedAt: string;
+}
+
 export interface Assignment extends Models.Document {
   title: string;
   description: string;

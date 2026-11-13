@@ -279,6 +279,22 @@ const COLLECTIONS = [
       { key: 'level', size: 50 },
     ],
   },
+  {
+    id: 'submissions',
+    name: 'Submissions',
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users()), Permission.update(Role.users())],
+    documentSecurity: true,
+    attributes: [
+      { key: 'assignmentId', size: 255 },
+      { key: 'studentId', size: 255 },
+      { key: 'studentName', size: 255 },
+      { key: 'content', size: 2000 },
+      { key: 'status', size: 50 },
+      { key: 'grade', size: 50 },
+      { key: 'feedback', size: 1000 },
+      { key: 'submittedAt', size: 255 },
+    ],
+  },
 ];
 
 // Set to true if every document must provide each attribute.

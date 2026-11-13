@@ -17,6 +17,7 @@ export const COLLECTIONS = {
   GARAGES: 'garages',
   APPLICATIONS: 'applications',
   ASSIGNMENTS: 'assignments',
+  SUBMISSIONS: 'submissions',
   SERVICE_REQUESTS: 'service_requests',
   AUDIT_LOGS: 'audit_logs',
   DEPARTMENTS: 'departments',

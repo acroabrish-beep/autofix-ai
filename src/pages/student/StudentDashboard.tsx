@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { learningService } from '../../services/database/learning';
-import { databaseService, COLLECTIONS } from '../../services/database';
-import { LearningModule, Assignment } from '../../types';
+import { databaseService, COLLECTIONS, Query } from '../../services/database';
+import { generateChatReply } from '../../services/ai/chat';
+import { Permission, Role } from 'appwrite';
+import { LearningModule, Assignment, Submission } from '../../types';
 import {
   BookOpen,
   ClipboardList,
@@ -12,7 +14,16 @@ import {
   LayoutDashboard,
   LogOut,
   Loader2,
+  Send,
+  X,
+  AlertCircle,
 } from 'lucide-react';
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 type StudentTab = 'courses' | 'assignments' | 'tutor' | 'certificates';
 
@@ -20,11 +31,25 @@ export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
 
+  const institutionId = profile?.institutionId;
+
   const [activeTab, setActiveTab] = useState<StudentTab>('courses');
   const [courses, setCourses] = useState<LearningModule[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [submittingAssignment, setSubmittingAssignment] = useState<Assignment | null>(null);
+  const [submissionContent, setSubmissionContent] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // --- AI Tutor state ---
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -33,10 +58,21 @@ export const StudentDashboard: React.FC = () => {
     try {
       const [courseList, assignmentList] = await Promise.all([
         learningService.listModules(),
-        databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS),
+        institutionId
+          ? databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS, [
+              Query.equal('institutionId', institutionId),
+            ])
+          : databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS),
       ]);
       setCourses(courseList);
       setAssignments(assignmentList);
+
+      if (user) {
+        const submissionList = await databaseService.listDocuments<Submission>(COLLECTIONS.SUBMISSIONS, [
+          Query.equal('studentId', user.$id),
+        ]);
+        setSubmissions(submissionList);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load student data.');
     } finally {
@@ -46,11 +82,78 @@ export const StudentDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [institutionId, user]);
 
   const handleLogout = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const getSubmission = (assignmentId: string) =>
+    submissions.find((submission) => submission.assignmentId === assignmentId);
+
+  const handleSubmitWork = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!submittingAssignment || !user || !submissionContent.trim()) return;
+
+    setSubmitting(true);
+    try {
+      await databaseService.createDocument(
+        COLLECTIONS.SUBMISSIONS,
+        {
+          assignmentId: submittingAssignment.$id,
+          studentId: user.$id,
+          studentName: profile?.fullName || user.name || user.email,
+          content: submissionContent.trim(),
+          status: 'pending',
+          grade: '',
+          feedback: '',
+          submittedAt: new Date().toISOString(),
+        },
+        [Permission.read(Role.users()), Permission.update(Role.users())]
+      );
+
+      setSubmissionContent('');
+      setSubmittingAssignment(null);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit work.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [chatMessages, chatLoading]);
+
+  const handleSendTutorMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+
+    setChatInput('');
+    setChatError(null);
+    setChatLoading(true);
+    setChatMessages((prev) => [
+      ...prev,
+      { id: `local-${Date.now()}-user`, role: 'user', content: text },
+    ]);
+
+    try {
+      const reply = await generateChatReply(
+        `System: You are a TVET tutor. Help the student learn. User: ${text}`
+      );
+      setChatMessages((prev) => [
+        ...prev,
+        { id: `local-${Date.now()}-ai`, role: 'assistant', content: reply },
+      ]);
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : 'Failed to get AI response.');
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const displayName = profile?.fullName || user?.name || user?.email || 'Student';
@@ -154,47 +257,190 @@ export const StudentDashboard: React.FC = () => {
               )}
 
               {activeTab === 'assignments' && (
-                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-                  <div className="border-b border-slate-800 px-6 py-4">
-                    <h3 className="text-lg font-bold">Pending Assignments</h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-left text-sm">
-                      <thead className="bg-slate-800/60 text-slate-300">
-                        <tr>
-                          <th className="px-6 py-3 font-semibold">Title</th>
-                          <th className="px-6 py-3 font-semibold">Course</th>
-                          <th className="px-6 py-3 font-semibold">Due Date</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {assignments.length === 0 ? (
+                <div className="space-y-6">
+                  {submittingAssignment && (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h3 className="text-lg font-bold">
+                          Submit Work: {submittingAssignment.title}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmittingAssignment(null);
+                            setSubmissionContent('');
+                          }}
+                          className="text-slate-400 hover:text-white"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                      <form onSubmit={handleSubmitWork} className="space-y-4">
+                        <textarea
+                          required
+                          value={submissionContent}
+                          onChange={(e) => setSubmissionContent(e.target.value)}
+                          placeholder="Enter your submission text..."
+                          className="min-h-[150px] w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                        />
+                        <button
+                          type="submit"
+                          disabled={submitting || !submissionContent.trim()}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                        >
+                          {submitting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          Submit
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                    <div className="border-b border-slate-800 px-6 py-4">
+                      <h3 className="text-lg font-bold">Assignments</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[720px] text-left text-sm">
+                        <thead className="bg-slate-800/60 text-slate-300">
                           <tr>
-                            <td colSpan={3} className="px-6 py-10 text-center text-slate-400">
-                              No pending assignments.
-                            </td>
+                            <th className="px-6 py-3 font-semibold">Title</th>
+                            <th className="px-6 py-3 font-semibold">Course</th>
+                            <th className="px-6 py-3 font-semibold">Due Date</th>
+                            <th className="px-6 py-3 font-semibold">Status</th>
+                            <th className="px-6 py-3 font-semibold">Actions</th>
                           </tr>
-                        ) : (
-                          assignments.map((assignment) => (
-                            <tr key={assignment.$id} className="hover:bg-slate-800/40">
-                              <td className="px-6 py-4 font-medium">{assignment.title}</td>
-                              <td className="px-6 py-4 text-slate-400">
-                                {courses.find((course) => course.$id === assignment.courseId)?.title ||
-                                  assignment.courseId}
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {assignments.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                                No assignments found.
                               </td>
-                              <td className="px-6 py-4 text-slate-400">{assignment.dueDate}</td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            assignments.map((assignment) => {
+                              const submission = getSubmission(assignment.$id);
+                              return (
+                                <tr key={assignment.$id} className="hover:bg-slate-800/40">
+                                  <td className="px-6 py-4 font-medium">{assignment.title}</td>
+                                  <td className="px-6 py-4 text-slate-400">
+                                    {courses.find((course) => course.$id === assignment.courseId)?.title ||
+                                      assignment.courseId}
+                                  </td>
+                                  <td className="px-6 py-4 text-slate-400">{assignment.dueDate}</td>
+                                  <td className="px-6 py-4">
+                                    <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
+                                      {submission ? submission.status : 'pending'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    {!submission && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setSubmittingAssignment(assignment)}
+                                        className="rounded-lg bg-brand-teal px-3 py-2 text-xs font-bold text-slate-950"
+                                      >
+                                        Submit Work
+                                      </button>
+                                    )}
+                                    {submission?.status === 'graded' && (
+                                      <span className="text-xs text-brand-teal">
+                                        Grade: {submission.grade}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
 
               {activeTab === 'tutor' && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-                  AI Tutor integration is coming soon.
+                <div className="flex h-[600px] flex-col rounded-2xl border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-6 py-4">
+                    <h3 className="text-lg font-bold">AI Tutor</h3>
+                    <p className="text-xs text-slate-400">
+                      Ask questions about your courses and learning modules.
+                    </p>
+                  </div>
+
+                  <div className="flex-1 space-y-4 overflow-y-auto p-6">
+                    {chatMessages.length === 0 && !chatLoading && (
+                      <div className="text-center text-slate-400">
+                        Start a conversation with your AI tutor.
+                      </div>
+                    )}
+
+                    {chatMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
+                            message.role === 'user'
+                              ? 'bg-brand-blue text-white'
+                              : 'bg-slate-800 text-slate-100'
+                          }`}
+                        >
+                          {message.content}
+                        </div>
+                      </div>
+                    ))}
+
+                    {chatLoading && (
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl bg-slate-800 px-4 py-3 text-sm text-slate-100">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </div>
+                      </div>
+                    )}
+
+                    {chatError && (
+                      <div className="flex items-center gap-2 text-sm text-red-300">
+                        <AlertCircle className="h-4 w-4" />
+                        {chatError}
+                      </div>
+                    )}
+
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  <form
+                    onSubmit={handleSendTutorMessage}
+                    className="border-t border-slate-800 p-4"
+                  >
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Ask your tutor a question..."
+                        className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                      />
+                      <button
+                        type="submit"
+                        disabled={chatLoading || !chatInput.trim()}
+                        className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                      >
+                        {chatLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Send
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
 

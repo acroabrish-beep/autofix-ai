@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { Permission, Role } from 'appwrite';
-import { UserProfile, LearningModule, Assignment, LearningProgress } from '../../types';
+import { UserProfile, LearningModule, Assignment, LearningProgress, Submission } from '../../types';
 import {
   BookOpen,
   Users,
@@ -33,6 +33,9 @@ export const InstructorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<InstructorTab>('overview');
   const [students, setStudents] = useState<StudentProgress[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [gradeInputs, setGradeInputs] = useState<Record<string, string>>({});
+  const [feedbackInputs, setFeedbackInputs] = useState<Record<string, string>>({});
   const [courses, setCourses] = useState<LearningModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +94,26 @@ export const InstructorDashboard: React.FC = () => {
     setCourses(result);
   };
 
+  const loadSubmissions = async () => {
+    if (!user) return;
+    const assignmentList = await databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS, [
+      Query.equal('instructorId', user.$id),
+    ]);
+    const assignmentIds = new Set(assignmentList.map((assignment) => assignment.$id));
+    const allSubmissions = await databaseService.listDocuments<Submission>(COLLECTIONS.SUBMISSIONS);
+    const filtered = allSubmissions.filter((submission) => assignmentIds.has(submission.assignmentId));
+    setSubmissions(filtered);
+
+    const grades: Record<string, string> = {};
+    const feedback: Record<string, string> = {};
+    filtered.forEach((submission) => {
+      grades[submission.$id] = submission.grade || '';
+      feedback[submission.$id] = submission.feedback || '';
+    });
+    setGradeInputs(grades);
+    setFeedbackInputs(feedback);
+  };
+
   const loadData = async () => {
     if (!institutionId && activeTab !== 'assignments') {
       setLoading(false);
@@ -109,6 +132,9 @@ export const InstructorDashboard: React.FC = () => {
       }
       if (activeTab === 'assignments') {
         await loadCourses();
+      }
+      if (activeTab === 'grading') {
+        await loadSubmissions();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load instructor data.');
@@ -165,6 +191,19 @@ export const InstructorDashboard: React.FC = () => {
       setFormError(err instanceof Error ? err.message : 'Failed to create assignment.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleGradeSubmission = async (submission: Submission) => {
+    try {
+      await databaseService.updateDocument(COLLECTIONS.SUBMISSIONS, submission.$id, {
+        grade: gradeInputs[submission.$id] || '',
+        feedback: feedbackInputs[submission.$id] || '',
+        status: 'graded',
+      });
+      await loadSubmissions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to grade submission.');
     }
   };
 
@@ -417,8 +456,69 @@ export const InstructorDashboard: React.FC = () => {
               )}
 
               {activeTab === 'grading' && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-                  Grading tools are coming soon.
+                <div className="space-y-6">
+                  {submissions.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+                      No submissions to grade.
+                    </div>
+                  ) : (
+                    submissions.map((submission) => (
+                      <div
+                        key={submission.$id}
+                        className="rounded-2xl border border-slate-800 bg-slate-900 p-6"
+                      >
+                        <div className="mb-4">
+                          <h3 className="text-lg font-bold">{submission.studentName}</h3>
+                          <p className="text-sm text-slate-400">
+                            Assignment:{' '}
+                            {assignments.find((assignment) => assignment.$id === submission.assignmentId)?.title ||
+                              submission.assignmentId}
+                          </p>
+                          <p className="mt-2 text-sm text-slate-300">{submission.content}</p>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <input
+                            type="text"
+                            placeholder="Grade (e.g. 85/100)"
+                            value={gradeInputs[submission.$id] || ''}
+                            onChange={(e) =>
+                              setGradeInputs((prev) => ({
+                                ...prev,
+                                [submission.$id]: e.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Feedback"
+                            value={feedbackInputs[submission.$id] || ''}
+                            onChange={(e) =>
+                              setFeedbackInputs((prev) => ({
+                                ...prev,
+                                [submission.$id]: e.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                          />
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleGradeSubmission(submission)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950"
+                          >
+                            Save Grade
+                          </button>
+                          <span className="text-xs text-slate-400">
+                            Status: {submission.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </>
