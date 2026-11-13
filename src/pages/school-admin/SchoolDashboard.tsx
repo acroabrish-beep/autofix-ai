@@ -5,20 +5,21 @@ import { useRole } from '../../hooks/useRole';
 import { ID } from '../../lib/appwrite';
 import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
-import { UserProfile } from '../../types';
+import { UserProfile, Department, Program, LearningModule } from '../../types';
 import {
   GraduationCap,
   Users,
   BookOpen,
   LayoutDashboard,
   UserPlus,
+  Plus,
   LogOut,
   Loader2,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
 
-type SchoolTab = 'overview' | 'instructors' | 'students' | 'courses';
+type SchoolTab = 'overview' | 'instructors' | 'students' | 'academics' | 'courses';
 
 interface Counts {
   students: number;
@@ -52,6 +53,19 @@ export const SchoolDashboard: React.FC = () => {
     email: '',
     phone: '',
   });
+
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [courses, setCourses] = useState<LearningModule[]>([]);
+  const [departmentName, setDepartmentName] = useState('');
+  const [programForm, setProgramForm] = useState({
+    name: '',
+    departmentId: '',
+    level: 'beginner',
+  });
+  const [academicsError, setAcademicsError] = useState<string | null>(null);
+  const [academicsSuccess, setAcademicsSuccess] = useState<string | null>(null);
+  const [creatingAcademic, setCreatingAcademic] = useState(false);
 
   const loadCounts = async () => {
     if (!institutionId) return;
@@ -93,6 +107,27 @@ export const SchoolDashboard: React.FC = () => {
     setStudents(result);
   };
 
+  const loadDepartments = async () => {
+    if (!institutionId) return;
+    const result = await databaseService.listDocuments<Department>(COLLECTIONS.DEPARTMENTS, [
+      Query.equal('institutionId', institutionId),
+    ]);
+    setDepartments(result);
+  };
+
+  const loadPrograms = async () => {
+    if (!institutionId) return;
+    const result = await databaseService.listDocuments<Program>(COLLECTIONS.PROGRAMS, [
+      Query.equal('institutionId', institutionId),
+    ]);
+    setPrograms(result);
+  };
+
+  const loadCourses = async () => {
+    const result = await databaseService.listDocuments<LearningModule>(COLLECTIONS.LEARNING_MODULES);
+    setCourses(result);
+  };
+
   const loadData = async () => {
     if (!institutionId) {
       setLoading(false);
@@ -109,6 +144,10 @@ export const SchoolDashboard: React.FC = () => {
         await loadInstructors();
       } else if (activeTab === 'students') {
         await loadStudents();
+      } else if (activeTab === 'academics') {
+        await Promise.all([loadDepartments(), loadPrograms(), loadCourses()]);
+      } else if (activeTab === 'courses') {
+        await loadCourses();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load school data.');
@@ -161,12 +200,73 @@ export const SchoolDashboard: React.FC = () => {
     }
   };
 
+  const handleAddDepartment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAcademicsError(null);
+    setAcademicsSuccess(null);
+
+    if (!institutionId || !departmentName.trim()) return;
+
+    setCreatingAcademic(true);
+    try {
+      await databaseService.createDocument(COLLECTIONS.DEPARTMENTS, {
+        name: departmentName.trim(),
+        institutionId,
+        headId: '',
+      });
+      setDepartmentName('');
+      setAcademicsSuccess('Department created successfully.');
+      await loadDepartments();
+    } catch (err) {
+      setAcademicsError(err instanceof Error ? err.message : 'Failed to create department.');
+    } finally {
+      setCreatingAcademic(false);
+    }
+  };
+
+  const handleAddProgram = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAcademicsError(null);
+    setAcademicsSuccess(null);
+
+    if (!institutionId || !programForm.name.trim() || !programForm.departmentId) return;
+
+    setCreatingAcademic(true);
+    try {
+      await databaseService.createDocument(COLLECTIONS.PROGRAMS, {
+        name: programForm.name.trim(),
+        departmentId: programForm.departmentId,
+        institutionId,
+        level: programForm.level,
+      });
+      setProgramForm({ name: '', departmentId: '', level: 'beginner' });
+      setAcademicsSuccess('Program created successfully.');
+      await loadPrograms();
+    } catch (err) {
+      setAcademicsError(err instanceof Error ? err.message : 'Failed to create program.');
+    } finally {
+      setCreatingAcademic(false);
+    }
+  };
+
+  const handleAssignCourseProgram = async (courseId: string, programId: string) => {
+    try {
+      await databaseService.updateDocument(COLLECTIONS.LEARNING_MODULES, courseId, {
+        programId: programId || null,
+      });
+      await loadCourses();
+    } catch (err) {
+      setAcademicsError(err instanceof Error ? err.message : 'Failed to assign course.');
+    }
+  };
+
   const displayName = profile?.fullName || user?.name || user?.email || 'TVET Admin';
 
   const navItems: { id: SchoolTab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'instructors', label: 'Manage Instructors', icon: UserPlus },
     { id: 'students', label: 'Manage Students', icon: Users },
+    { id: 'academics', label: 'Manage Academics', icon: BookOpen },
     { id: 'courses', label: 'Manage Courses', icon: BookOpen },
   ];
 
@@ -398,9 +498,175 @@ export const SchoolDashboard: React.FC = () => {
                 </div>
               )}
 
+              {activeTab === 'academics' && (
+                <div className="space-y-6">
+                  {academicsError && (
+                    <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">
+                      {academicsError}
+                    </div>
+                  )}
+                  {academicsSuccess && (
+                    <div className="rounded-2xl border border-brand-teal/30 bg-brand-teal/10 p-4 text-sm text-brand-teal">
+                      {academicsSuccess}
+                    </div>
+                  )}
+
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                      <h3 className="mb-4 text-lg font-bold">Add Department</h3>
+                      <form onSubmit={handleAddDepartment} className="flex gap-3">
+                        <input
+                          required
+                          type="text"
+                          placeholder="Department name"
+                          value={departmentName}
+                          onChange={(e) => setDepartmentName(e.target.value)}
+                          className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                        />
+                        <button
+                          type="submit"
+                          disabled={creatingAcademic || !institutionId}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add
+                        </button>
+                      </form>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                      <h3 className="mb-4 text-lg font-bold">Add Program</h3>
+                      <form onSubmit={handleAddProgram} className="space-y-3">
+                        <input
+                          required
+                          type="text"
+                          placeholder="Program name"
+                          value={programForm.name}
+                          onChange={(e) =>
+                            setProgramForm((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                        />
+                        <select
+                          required
+                          value={programForm.departmentId}
+                          onChange={(e) =>
+                            setProgramForm((prev) => ({ ...prev, departmentId: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                        >
+                          <option value="">Select department</option>
+                          {departments.map((department) => (
+                            <option key={department.$id} value={department.$id}>
+                              {department.name}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={programForm.level}
+                          onChange={(e) =>
+                            setProgramForm((prev) => ({ ...prev, level: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                        >
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
+                        </select>
+                        <button
+                          type="submit"
+                          disabled={creatingAcademic || !institutionId}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Program
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                    <div className="border-b border-slate-800 px-6 py-4">
+                      <h3 className="text-lg font-bold">Departments</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-left text-sm">
+                        <thead className="bg-slate-800/60 text-slate-300">
+                          <tr>
+                            <th className="px-6 py-3 font-semibold">Name</th>
+                            <th className="px-6 py-3 font-semibold">Programs</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800">
+                          {departments.length === 0 ? (
+                            <tr>
+                              <td colSpan={2} className="px-6 py-10 text-center text-slate-400">
+                                No departments found.
+                              </td>
+                            </tr>
+                          ) : (
+                            departments.map((department) => (
+                              <tr key={department.$id} className="hover:bg-slate-800/40">
+                                <td className="px-6 py-4 font-medium">{department.name}</td>
+                                <td className="px-6 py-4 text-slate-400">
+                                  {programs.filter((program) => program.departmentId === department.$id).length}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'courses' && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-                  Course management is coming soon.
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-6 py-4">
+                    <h3 className="text-lg font-bold">Assign Courses to Programs</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="bg-slate-800/60 text-slate-300">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Course</th>
+                          <th className="px-6 py-3 font-semibold">Program</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {courses.length === 0 ? (
+                          <tr>
+                            <td colSpan={2} className="px-6 py-10 text-center text-slate-400">
+                              No courses found.
+                            </td>
+                          </tr>
+                        ) : (
+                          courses.map((course) => (
+                            <tr key={course.$id} className="hover:bg-slate-800/40">
+                              <td className="px-6 py-4 font-medium">{course.title}</td>
+                              <td className="px-6 py-4">
+                                <select
+                                  value={course.programId || ''}
+                                  onChange={(e) =>
+                                    handleAssignCourseProgram(course.$id, e.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                                >
+                                  <option value="">Unassigned</option>
+                                  {programs.map((program) => (
+                                    <option key={program.$id} value={program.$id}>
+                                      {program.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </>

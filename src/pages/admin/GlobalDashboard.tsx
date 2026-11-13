@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
-import { Application, UserProfile, School, Garage } from '../../types';
+import { Application, UserProfile, School, Garage, AuditLog } from '../../types';
+import { Permission, Role } from 'appwrite';
 import {
   Shield,
   Building2,
-  Wrench,
   Users,
   LayoutDashboard,
   FileText,
@@ -17,9 +17,17 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  ClipboardList,
 } from 'lucide-react';
 
-type AdminTab = 'overview' | 'schools' | 'garages' | 'applications' | 'users' | 'billing' | 'settings';
+type AdminTab =
+  | 'overview'
+  | 'institutions'
+  | 'applications'
+  | 'users'
+  | 'audit'
+  | 'billing'
+  | 'settings';
 
 interface Counts {
   schools: number;
@@ -30,12 +38,21 @@ interface Counts {
 
 const navItems: { id: AdminTab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'schools', label: 'Schools', icon: Building2 },
-  { id: 'garages', label: 'Garages', icon: Wrench },
+  { id: 'institutions', label: 'Schools & Garages', icon: Building2 },
   { id: 'applications', label: 'Applications', icon: FileText },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'audit', label: 'Audit Logs', icon: ClipboardList },
   { id: 'billing', label: 'Billing & Subscriptions', icon: CreditCard },
   { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+const USER_ROLES = [
+  'global_admin',
+  'tvet_admin',
+  'instructor',
+  'student',
+  'garage_admin',
+  'mechanic',
 ];
 
 export const GlobalDashboard: React.FC = () => {
@@ -51,15 +68,19 @@ export const GlobalDashboard: React.FC = () => {
   });
   const [applications, setApplications] = useState<Application[]>([]);
   const [applicantNames, setApplicantNames] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionId, setActionId] = useState<string | null>(null);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [garages, setGarages] = useState<Garage[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [subscriptions, setSubscriptions] = useState<
     { id: string; name: string; type: string; plan: string; status: string }[]
   >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   const loadOverview = async () => {
-    const [schools, garages, pendingApplications, users] = await Promise.all([
+    const [schoolCount, garageCount, pendingApplications, userCount] = await Promise.all([
       databaseService.countDocuments(COLLECTIONS.SCHOOLS),
       databaseService.countDocuments(COLLECTIONS.GARAGES),
       databaseService.countDocuments(COLLECTIONS.APPLICATIONS, [
@@ -69,10 +90,10 @@ export const GlobalDashboard: React.FC = () => {
     ]);
 
     setCounts({
-      schools,
-      garages,
+      schools: schoolCount,
+      garages: garageCount,
       applications: pendingApplications,
-      users,
+      users: userCount,
     });
   };
 
@@ -94,22 +115,44 @@ export const GlobalDashboard: React.FC = () => {
     setApplicantNames(nameMap);
   };
 
+  const loadUsers = async () => {
+    const result = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES);
+    setUsers(result);
+  };
+
+  const loadInstitutions = async () => {
+    const [schoolList, garageList] = await Promise.all([
+      databaseService.listDocuments<School>(COLLECTIONS.SCHOOLS),
+      databaseService.listDocuments<Garage>(COLLECTIONS.GARAGES),
+    ]);
+    setSchools(schoolList);
+    setGarages(garageList);
+  };
+
+  const loadAuditLogs = async () => {
+    const result = await databaseService.listDocuments<AuditLog>(COLLECTIONS.AUDIT_LOGS, [
+      Query.orderDesc('timestamp'),
+      Query.limit(50),
+    ]);
+    setAuditLogs(result);
+  };
+
   const loadBilling = async () => {
-    const [schools, garages] = await Promise.all([
+    const [schoolList, garageList] = await Promise.all([
       databaseService.listDocuments<School>(COLLECTIONS.SCHOOLS),
       databaseService.listDocuments<Garage>(COLLECTIONS.GARAGES),
     ]);
 
     const plans = ['Basic', 'Pro', 'Enterprise'];
     setSubscriptions([
-      ...schools.map((school, index) => ({
+      ...schoolList.map((school, index) => ({
         id: school.$id,
         name: school.name,
         type: 'School',
         plan: plans[index % plans.length],
         status: school.status === 'active' ? 'Active' : 'Expired',
       })),
-      ...garages.map((garage, index) => ({
+      ...garageList.map((garage, index) => ({
         id: garage.$id,
         name: garage.name,
         type: 'Garage',
@@ -126,8 +169,14 @@ export const GlobalDashboard: React.FC = () => {
     try {
       if (activeTab === 'overview') {
         await loadOverview();
+      } else if (activeTab === 'institutions') {
+        await loadInstitutions();
       } else if (activeTab === 'applications') {
         await loadApplications();
+      } else if (activeTab === 'users') {
+        await loadUsers();
+      } else if (activeTab === 'audit') {
+        await loadAuditLogs();
       } else if (activeTab === 'billing') {
         await loadBilling();
       }
@@ -148,6 +197,24 @@ export const GlobalDashboard: React.FC = () => {
     navigate('/');
   };
 
+  const logAudit = async (action: string, targetId: string, details: string) => {
+    try {
+      await databaseService.createDocument(
+        COLLECTIONS.AUDIT_LOGS,
+        {
+          actorId: user?.$id || 'unknown',
+          action,
+          targetId,
+          details,
+          timestamp: new Date().toISOString(),
+        },
+        [Permission.read(Role.users())]
+      );
+    } catch (err) {
+      console.error('Failed to write audit log:', err);
+    }
+  };
+
   const handleApplicationStatus = async (
     application: Application,
     status: 'approved' | 'rejected'
@@ -157,10 +224,75 @@ export const GlobalDashboard: React.FC = () => {
       await databaseService.updateDocument(COLLECTIONS.APPLICATIONS, application.$id, {
         status,
       });
+      await logAudit(
+        `application_${status}`,
+        application.$id,
+        `${status} application ${application.$id}`
+      );
       await loadApplications();
       await loadOverview();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update application.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleUserRoleChange = async (profile: UserProfile, newRole: string) => {
+    setActionId(profile.$id);
+    try {
+      await databaseService.updateDocument(COLLECTIONS.PROFILES, profile.$id, {
+        role: newRole,
+      });
+      await logAudit(
+        'change_user_role',
+        profile.$id,
+        `Changed role from ${profile.role} to ${newRole}`
+      );
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user role.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleUserStatus = async (profile: UserProfile) => {
+    const newStatus = profile.status === 'suspended' ? 'active' : 'suspended';
+    setActionId(profile.$id);
+    try {
+      await databaseService.updateDocument(COLLECTIONS.PROFILES, profile.$id, {
+        status: newStatus,
+      });
+      await logAudit(
+        'toggle_user_status',
+        profile.$id,
+        `${newStatus === 'suspended' ? 'Suspended' : 'Activated'} user ${profile.$id}`
+      );
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user status.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleInstitutionStatus = async (
+    id: string,
+    collection: string,
+    newStatus: string
+  ) => {
+    setActionId(id);
+    try {
+      await databaseService.updateDocument(collection, id, { status: newStatus });
+      await logAudit(
+        'toggle_institution_status',
+        id,
+        `Set ${collection} ${id} to ${newStatus}`
+      );
+      await loadInstitutions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update institution status.');
     } finally {
       setActionId(null);
     }
@@ -205,7 +337,7 @@ export const GlobalDashboard: React.FC = () => {
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-6 py-4 backdrop-blur">
           <div>
-            <h2 className="text-xl font-bold capitalize">{activeTab}</h2>
+            <h2 className="text-xl font-bold capitalize">{activeTab.replace('-', ' ')}</h2>
             <p className="text-xs text-slate-400">Platform administration console</p>
           </div>
 
@@ -244,6 +376,80 @@ export const GlobalDashboard: React.FC = () => {
                   <StatCard label="Total Garages" value={counts.garages} />
                   <StatCard label="Pending Applications" value={counts.applications} />
                   <StatCard label="Total Platform Users" value={counts.users} />
+                </div>
+              )}
+
+              {activeTab === 'institutions' && (
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-6 py-4">
+                    <h3 className="text-lg font-bold">Schools & Garages</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="bg-slate-800/60 text-slate-300">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Name</th>
+                          <th className="px-6 py-3 font-semibold">Type</th>
+                          <th className="px-6 py-3 font-semibold">Location</th>
+                          <th className="px-6 py-3 font-semibold">Status</th>
+                          <th className="px-6 py-3 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {[...schools.map((s) => ({ ...s, type: 'School' })), ...garages.map((g) => ({ ...g, type: 'Garage' }))].length ===
+                        0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                              No institutions found.
+                            </td>
+                          </tr>
+                        ) : (
+                          [...schools.map((s) => ({ ...s, type: 'School' })), ...garages.map((g) => ({ ...g, type: 'Garage' }))].map(
+                            (item) => (
+                              <tr key={item.$id} className="hover:bg-slate-800/40">
+                                <td className="px-6 py-4 font-medium">{item.name}</td>
+                                <td className="px-6 py-4 text-slate-400">{item.type}</td>
+                                <td className="px-6 py-4 text-slate-400">{item.location}</td>
+                                <td className="px-6 py-4">
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                      item.status === 'active'
+                                        ? 'bg-brand-teal/10 text-brand-teal'
+                                        : 'bg-red-500/10 text-red-300'
+                                    }`}
+                                  >
+                                    {item.status || 'active'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <button
+                                    type="button"
+                                    disabled={actionId === item.$id}
+                                    onClick={() =>
+                                      handleInstitutionStatus(
+                                        item.$id,
+                                        item.type === 'School'
+                                          ? COLLECTIONS.SCHOOLS
+                                          : COLLECTIONS.GARAGES,
+                                        item.status === 'suspended' ? 'active' : 'suspended'
+                                      )
+                                    }
+                                    className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${
+                                      item.status === 'suspended'
+                                        ? 'bg-brand-teal text-slate-950'
+                                        : 'border border-red-500/40 text-red-300 hover:bg-red-500/10'
+                                    }`}
+                                  >
+                                    {item.status === 'suspended' ? 'Activate' : 'Suspend'}
+                                  </button>
+                                </td>
+                              </tr>
+                            )
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
@@ -321,6 +527,128 @@ export const GlobalDashboard: React.FC = () => {
                                   </button>
                                 </div>
                               </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'users' && (
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-6 py-4">
+                    <h3 className="text-lg font-bold">Platform Users</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[880px] text-left text-sm">
+                      <thead className="bg-slate-800/60 text-slate-300">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Name</th>
+                          <th className="px-6 py-3 font-semibold">Email</th>
+                          <th className="px-6 py-3 font-semibold">Role</th>
+                          <th className="px-6 py-3 font-semibold">Institution</th>
+                          <th className="px-6 py-3 font-semibold">Status</th>
+                          <th className="px-6 py-3 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {users.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                              No users found.
+                            </td>
+                          </tr>
+                        ) : (
+                          users.map((profile) => (
+                            <tr key={profile.$id} className="hover:bg-slate-800/40">
+                              <td className="px-6 py-4 font-medium">{profile.fullName}</td>
+                              <td className="px-6 py-4 text-slate-400">{profile.email}</td>
+                              <td className="px-6 py-4">
+                                <select
+                                  value={profile.role}
+                                  disabled={actionId === profile.$id}
+                                  onChange={(event) =>
+                                    handleUserRoleChange(profile, event.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                                >
+                                  {USER_ROLES.map((role) => (
+                                    <option key={role} value={role}>
+                                      {role}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-6 py-4 text-slate-400">
+                                {profile.institutionId || profile.garageId || '—'}
+                              </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`rounded-full px-3 py-1 text-xs font-bold ${
+                                    profile.status === 'suspended'
+                                      ? 'bg-red-500/10 text-red-300'
+                                      : 'bg-brand-teal/10 text-brand-teal'
+                                  }`}
+                                >
+                                  {profile.status || 'active'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <button
+                                  type="button"
+                                  disabled={actionId === profile.$id}
+                                  onClick={() => handleUserStatus(profile)}
+                                  className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors disabled:opacity-50 ${
+                                    profile.status === 'suspended'
+                                      ? 'bg-brand-teal text-slate-950'
+                                      : 'border border-red-500/40 text-red-300 hover:bg-red-500/10'
+                                  }`}
+                                >
+                                  {profile.status === 'suspended' ? 'Activate' : 'Suspend'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'audit' && (
+                <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+                  <div className="border-b border-slate-800 px-6 py-4">
+                    <h3 className="text-lg font-bold">Audit Logs</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="bg-slate-800/60 text-slate-300">
+                        <tr>
+                          <th className="px-6 py-3 font-semibold">Timestamp</th>
+                          <th className="px-6 py-3 font-semibold">Actor</th>
+                          <th className="px-6 py-3 font-semibold">Action</th>
+                          <th className="px-6 py-3 font-semibold">Target</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                        {auditLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-10 text-center text-slate-400">
+                              No audit logs found.
+                            </td>
+                          </tr>
+                        ) : (
+                          auditLogs.map((log) => (
+                            <tr key={log.$id} className="hover:bg-slate-800/40">
+                              <td className="px-6 py-4 text-slate-400">
+                                {new Date(log.timestamp).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 font-medium">{log.actorId}</td>
+                              <td className="px-6 py-4 text-slate-400">{log.action}</td>
+                              <td className="px-6 py-4 text-slate-400">{log.targetId}</td>
                             </tr>
                           ))
                         )}
@@ -417,12 +745,15 @@ export const GlobalDashboard: React.FC = () => {
               )}
 
               {activeTab !== 'overview' &&
+                activeTab !== 'institutions' &&
                 activeTab !== 'applications' &&
+                activeTab !== 'users' &&
+                activeTab !== 'audit' &&
                 activeTab !== 'billing' && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-                  {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} management is coming soon.
-                </div>
-              )}
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+                    {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} management is coming soon.
+                  </div>
+                )}
             </>
           )}
         </main>

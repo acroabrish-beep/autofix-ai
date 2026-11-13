@@ -18,6 +18,9 @@ export const COLLECTIONS = {
   APPLICATIONS: 'applications',
   ASSIGNMENTS: 'assignments',
   SERVICE_REQUESTS: 'service_requests',
+  AUDIT_LOGS: 'audit_logs',
+  DEPARTMENTS: 'departments',
+  PROGRAMS: 'programs',
 };
 
 export const databaseService = {

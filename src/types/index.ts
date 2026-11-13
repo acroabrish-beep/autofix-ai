@@ -18,9 +18,24 @@ export interface UserProfile extends Models.Document {
   garageId?: string;
   phone?: string;
   specialization?: string;
+  status?: string;
+}
+
+export interface Department extends Models.Document {
+  name: string;
+  institutionId: string;
+  headId: string;
+}
+
+export interface Program extends Models.Document {
+  name: string;
+  departmentId: string;
+  institutionId: string;
+  level: string;
 }
 
 export interface LearningModule extends Models.Document {
+  programId?: string;
   title: string;
   description: string;
   category: string;
@@ -146,6 +161,17 @@ export interface ServiceRequest extends Models.Document {
   garageId: string;
   status: string;
   createdAt: string;
+  assignedMechanicId?: string;
+  finalCost?: string;
+  notes?: string;
+}
+
+export interface AuditLog extends Models.Document {
+  actorId: string;
+  action: string;
+  targetId: string;
+  details: string;
+  timestamp: string;
 }
 
 export interface Application extends Models.Document {
