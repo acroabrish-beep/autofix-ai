@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "setup:db": "node --env-file=.env setup-db.js",
     "seed:learning": "node --env-file=.env seed-learning.js",
-    "seed:users": "node --env-file=.env seed-users.js"
+    "seed:users": "node --env-file=.env seed-users.js",
+    "seed:data": "node --env-file=.env seed-data.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
