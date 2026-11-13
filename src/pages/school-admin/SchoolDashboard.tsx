@@ -187,6 +187,7 @@ export const SchoolDashboard: React.FC = () => {
         role: 'instructor' as any,
         institutionId,
         phone: instructorForm.phone,
+        privileged: true,
       });
 
       setInstructorForm({ name: '', email: '', phone: '' });

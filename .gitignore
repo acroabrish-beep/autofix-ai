@@ -4,5 +4,9 @@
 .env.*.local
 
 # Dependencies & build output
-node_modules
-dist
+node_modules/
+dist/
+
+# Appwrite function archives
+*.tar.gz
+*.zip

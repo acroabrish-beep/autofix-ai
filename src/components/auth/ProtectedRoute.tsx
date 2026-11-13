@@ -29,8 +29,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
-    return <Navigate to="/dashboard" replace />;
+  if (allowedRoles && (!profile || !allowedRoles.includes(profile.role))) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-bold text-brand-navy mb-2">403 Unauthorized</h1>
+          <p className="text-slate-600">
+            You do not have permission to access this page.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

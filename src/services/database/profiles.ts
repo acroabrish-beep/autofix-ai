@@ -20,19 +20,35 @@ export const profilesService = {
     userId: string;
     fullName: string;
     email: string;
-    role: UserRole;
+    role?: UserRole;
     institutionId?: string;
     garageId?: string;
     phone?: string;
     specialization?: string;
+    privileged?: boolean;
   }): Promise<UserProfile> {
-    const profileData = {
-      ...data,
+    // Non-privileged callers (such as public registration) can only create a
+    // standard student profile. Privileged fields are ignored unless an admin
+    // flow explicitly opts in.
+    const privileged = data.privileged === true;
+
+    const profileData: Record<string, any> = {
+      userId: data.userId,
+      fullName: data.fullName,
+      email: data.email,
+      role: privileged ? data.role || 'student' : 'student',
       avatarFileId: '',
       preferredLanguage: 'en',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    if (privileged) {
+      if (data.institutionId) profileData.institutionId = data.institutionId;
+      if (data.garageId) profileData.garageId = data.garageId;
+    }
+    if (data.phone) profileData.phone = data.phone;
+    if (data.specialization) profileData.specialization = data.specialization;
 
     // Set permissions so only the user can read/update their profile
     const permissions = [
@@ -47,12 +63,27 @@ export const profilesService = {
     );
   },
 
-  async updateProfile(profileId: string, data: Partial<UserProfile>): Promise<UserProfile> {
+  async updateProfile(
+    profileId: string,
+    data: Partial<UserProfile>,
+    options?: { privileged?: boolean }
+  ): Promise<UserProfile> {
+    const privileged = options?.privileged === true;
+    const updateData: Record<string, any> = { ...data };
+
+    // Prevent non-privileged client flows from escalating roles or moving a
+    // profile between tenants.
+    if (!privileged) {
+      delete updateData.role;
+      delete updateData.institutionId;
+      delete updateData.garageId;
+    }
+
     return await databaseService.updateDocument<UserProfile>(
       COLLECTIONS.PROFILES,
       profileId,
       {
-        ...data,
+        ...updateData,
         updatedAt: new Date().toISOString(),
       }
     );

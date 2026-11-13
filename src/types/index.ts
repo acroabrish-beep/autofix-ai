@@ -63,6 +63,7 @@ export interface LearningProgress extends Models.Document {
 
 export interface VehicleProfile extends Models.Document {
   userId: string;
+  institutionId?: string;
   make: string;
   model: string;
   /** Stored as a string in the `vehicles` collection. */
@@ -121,6 +122,7 @@ export interface DiagnosticRequest {
 
 export interface DiagnosticSession extends Models.Document {
   userId: string;
+  institutionId?: string;
   vehicleId: string;
   description: string;
   aiResponse: string;

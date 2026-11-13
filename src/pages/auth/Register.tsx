@@ -9,14 +9,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { UserRole } from '../../types';
+
 
 export const Register = () => {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -70,7 +69,6 @@ export const Register = () => {
           userId: createdAccount.$id,
           fullName,
           email,
-          role,
         });
       } catch (profileError) {
         // Don't block sign-up if the profile write fails; AuthContext will
@@ -154,22 +152,6 @@ export const Register = () => {
                 placeholder={t('auth.password_hint')}
                 minLength={8}
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                {t('auth.role_label')}
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-brand-blue outline-none bg-white transition-all"
-              >
-                <option value="student">{t('auth.role_student')}</option>
-                <option value="mechanic">{t('auth.role_mechanic')}</option>
-                <option value="teacher">{t('auth.role_teacher')}</option>
-                <option value="vehicle_owner">{t('auth.role_owner')}</option>
-              </select>
             </div>
 
             <Button type="submit" className="w-full py-6 text-lg" disabled={loading}>

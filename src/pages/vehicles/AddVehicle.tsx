@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { account, databases, DATABASE_ID, ID } from '../../lib/appwrite';
 import { Permission, Role } from 'appwrite';
 import { COLLECTIONS } from '../../services/database';
+import { profilesService } from '../../services/database/profiles';
 import { Navbar } from '../../components/layout/Navbar';
 import { Footer } from '../../components/layout/Footer';
 import { Button } from '../../components/ui/Button';
@@ -40,6 +41,7 @@ export const AddVehicle = () => {
     try {
       // 1. Identify the signed-in user.
       const currentUser = await account.get();
+      const userProfile = await profilesService.getProfile(currentUser.$id);
 
       // 2. Persist the free-text vehicle details.
       await databases.createDocument(
@@ -48,6 +50,7 @@ export const AddVehicle = () => {
         ID.unique(),
         {
           userId: currentUser.$id,
+          institutionId: userProfile?.institutionId || '',
           make: make.trim(),
           model: model.trim(),
           year: String(numericYear),

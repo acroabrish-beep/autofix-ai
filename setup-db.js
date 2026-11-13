@@ -236,10 +236,11 @@ const COLLECTIONS = [
     permissions: USERS_CREATE,
     documentSecurity: true,
     attributes: [
-      { key: 'studentId', size: 255 },
-      { key: 'courseId', size: 255 },
-      { key: 'progressPercentage', type: 'integer' },
-      { key: 'status', size: 50 },
+      { key: 'userId', size: 255 },
+      { key: 'moduleId', size: 255 },
+      { key: 'progressPercent', type: 'integer' },
+      { key: 'completed', type: 'boolean' },
+      { key: 'startedAt', size: 255 },
     ],
   },
   {
@@ -319,6 +320,20 @@ const COLLECTIONS = [
       { key: 'amount', size: 50 },
       { key: 'date', size: 50 },
       { key: 'status', size: 50 },
+    ],
+  },
+  {
+    id: 'service_records',
+    name: 'Service Records',
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'vehicleId', size: 255 },
+      { key: 'garageId', size: 255 },
+      { key: 'mechanicId', size: 255 },
+      { key: 'description', size: 1000 },
+      { key: 'date', size: 255 },
+      { key: 'cost', size: 50 },
     ],
   },
 ];
@@ -438,7 +453,8 @@ async function ensureCollection({ id, name, permissions, documentSecurity }) {
 }
 
 async function ensureAttribute(collectionId, { key, size, array, type }) {
-  const attributeType = type === 'integer' ? 'integer' : array ? 'string array' : 'string';
+  const attributeType =
+    type === 'integer' ? 'integer' : type === 'boolean' ? 'boolean' : array ? 'string array' : 'string';
 
   try {
     const existing = await databases.getAttribute(databaseId, collectionId, key);
@@ -464,6 +480,15 @@ async function ensureAttribute(collectionId, { key, size, array, type }) {
       ATTRIBUTES_REQUIRED,
       0,
       100,
+      null,
+      false
+    );
+  } else if (type === 'boolean') {
+    await databases.createBooleanAttribute(
+      databaseId,
+      collectionId,
+      key,
+      ATTRIBUTES_REQUIRED,
       null,
       false
     );

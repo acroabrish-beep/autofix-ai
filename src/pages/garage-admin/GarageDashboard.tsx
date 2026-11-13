@@ -153,6 +153,7 @@ export const GarageDashboard: React.FC = () => {
         garageId,
         phone: mechanicForm.phone,
         specialization: mechanicForm.specialization,
+        privileged: true,
       });
 
       setMechanicForm({ name: '', email: '', phone: '', specialization: '' });

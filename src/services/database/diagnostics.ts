@@ -86,6 +86,7 @@ export const diagnosticsService = {
       vehicleId: data.vehicleId,
       description,
       aiResponse,
+      institutionId: data.institutionId || '',
     };
 
     const session = await databaseService.createDocument<any>(
