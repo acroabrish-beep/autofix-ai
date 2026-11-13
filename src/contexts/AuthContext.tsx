@@ -42,7 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userId: currentUser.$id,
             fullName: currentUser.name || 'User',
             email: currentUser.email,
-            role: (currentUser.prefs as any)?.role || 'student'
+            role: (currentUser.prefs as any)?.role || 'student',
+            institutionId: (currentUser.prefs as any)?.institutionId,
           });
         }
         setProfile(userProfile);

@@ -5,6 +5,7 @@ import { appwriteAuth } from '../../services/auth/appwriteAuth';
 import { account } from '../../lib/appwrite';
 import { isNetworkError } from '../../lib/isNetworkError';
 import { useAuth } from '../../contexts/AuthContext';
+import { profilesService } from '../../services/database/profiles';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
 import { AlertCircle, Loader2 } from 'lucide-react';
@@ -27,15 +28,35 @@ export const Login = () => {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
 
+  const getRolePath = (role?: string) => {
+    switch (role) {
+      case 'global_admin':
+        return '/admin';
+      case 'tvet_admin':
+        return '/school-admin';
+      case 'instructor':
+        return '/instructor';
+      case 'garage_admin':
+        return '/garage-admin';
+      case 'mechanic':
+        return '/mechanic';
+      case 'student':
+        return '/student';
+      default:
+        return '/dashboard';
+    }
+  };
+
   // If a session is already active, skip the login form.
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        await account.get();
-        if (!cancelled) {
-          navigate('/dashboard', { replace: true });
+        const currentUser = await account.get();
+        if (!cancelled && currentUser) {
+          const profile = await profilesService.getProfile(currentUser.$id);
+          navigate(getRolePath(profile?.role), { replace: true });
         }
       } catch {
         // No active session — stay on the login page.
@@ -62,7 +83,9 @@ export const Login = () => {
       );
 
       await refreshUser();
-      navigate('/dashboard', { replace: true });
+      const currentUser = await appwriteAuth.getCurrentUser();
+      const userProfile = currentUser ? await profilesService.getProfile(currentUser.$id) : null;
+      navigate(getRolePath(userProfile?.role), { replace: true });
     } catch (err: unknown) {
       console.error('Login failed:', err);
 

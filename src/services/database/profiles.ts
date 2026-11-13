@@ -21,6 +21,10 @@ export const profilesService = {
     fullName: string;
     email: string;
     role: UserRole;
+    institutionId?: string;
+    garageId?: string;
+    phone?: string;
+    specialization?: string;
   }): Promise<UserProfile> {
     const profileData = {
       ...data,

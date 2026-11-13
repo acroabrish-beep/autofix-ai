@@ -11,6 +11,9 @@
  *   - repair_guides     (Users CRUD)
  *   - vehicles          (Users CRUD)
  *   - diagnostic_sessions (Users create; owner-only documents)
+ *   - schools           (Shared read)
+ *   - garages           (Shared read)
+ *   - applications      (Users create; owner-only documents)
  *
  * Safe to re-run: existing collections, attributes and permissions are
  * detected and skipped or merged. Attribute creation is asynchronous in
@@ -79,6 +82,7 @@ const COLLECTIONS = [
     documentSecurity: true,
     attributes: [
       { key: 'userId', size: 255 },
+      { key: 'institutionId', size: 255 },
       { key: 'userMessage', size: 5000 },
       { key: 'aiResponse', size: 10000 },
     ],
@@ -108,6 +112,7 @@ const COLLECTIONS = [
     documentSecurity: true,
     attributes: [
       { key: 'userId', size: 255 },
+      { key: 'institutionId', size: 255 },
       { key: 'make', size: 100 },
       { key: 'model', size: 100 },
       { key: 'year', size: 10 },
@@ -122,9 +127,100 @@ const COLLECTIONS = [
     documentSecurity: true,
     attributes: [
       { key: 'userId', size: 255 },
+      { key: 'institutionId', size: 255 },
       { key: 'vehicleId', size: 255 },
       { key: 'description', size: 5000 },
       { key: 'aiResponse', size: 10000 },
+    ],
+  },
+  {
+    id: 'schools',
+    name: 'Schools',
+    // Shared directory: signed-in users can read; owners/admins write at document level.
+    permissions: USERS_READ,
+    documentSecurity: true,
+    attributes: [
+      { key: 'name', size: 255 },
+      { key: 'location', size: 255 },
+      { key: 'adminId', size: 255 },
+      { key: 'status', size: 50 },
+    ],
+  },
+  {
+    id: 'garages',
+    name: 'Garages',
+    // Shared directory: signed-in users can read; owners/admins write at document level.
+    permissions: USERS_READ,
+    documentSecurity: true,
+    attributes: [
+      { key: 'name', size: 255 },
+      { key: 'location', size: 255 },
+      { key: 'ownerId', size: 255 },
+      { key: 'status', size: 50 },
+    ],
+  },
+  {
+    id: 'applications',
+    name: 'Applications',
+    // Users may create; each document grants read/update/delete to its owner.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'type', size: 50 },
+      { key: 'applicantId', size: 255 },
+      { key: 'details', size: 1000 },
+      { key: 'status', size: 50 },
+    ],
+  },
+  {
+    id: 'profiles',
+    name: 'Profiles',
+    // Users may create their own profile; each document grants read/update to its owner.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'userId', size: 255 },
+      { key: 'fullName', size: 255 },
+      { key: 'email', size: 255 },
+      { key: 'role', size: 50 },
+      { key: 'avatarUrl', size: 500 },
+      { key: 'avatarFileId', size: 255 },
+      { key: 'preferredLanguage', size: 50 },
+      { key: 'institutionId', size: 255 },
+      { key: 'garageId', size: 255 },
+      { key: 'phone', size: 50 },
+      { key: 'specialization', size: 255 },
+      { key: 'createdAt', size: 50 },
+      { key: 'updatedAt', size: 50 },
+    ],
+  },
+  {
+    id: 'assignments',
+    name: 'Assignments',
+    // Instructors create assignments; students and instructors can read them.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'title', size: 255 },
+      { key: 'description', size: 1000 },
+      { key: 'courseId', size: 255 },
+      { key: 'instructorId', size: 255 },
+      { key: 'dueDate', size: 255 },
+    ],
+  },
+  {
+    id: 'service_requests',
+    name: 'Service Requests',
+    // Users may create; garage staff and owners update at document level.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'title', size: 255 },
+      { key: 'description', size: 1000 },
+      { key: 'vehicleId', size: 255 },
+      { key: 'garageId', size: 255 },
+      { key: 'status', size: 50 },
+      { key: 'createdAt', size: 50 },
     ],
   },
 ];

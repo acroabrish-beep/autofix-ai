@@ -13,6 +13,11 @@ export const COLLECTIONS = {
   REPAIR_GUIDES: 'repair_guides',
   SERVICE_RECORDS: 'service_records',
   CHAT_HISTORY: CHAT_COLLECTION_ID,
+  SCHOOLS: 'schools',
+  GARAGES: 'garages',
+  APPLICATIONS: 'applications',
+  ASSIGNMENTS: 'assignments',
+  SERVICE_REQUESTS: 'service_requests',
 };
 
 export const databaseService = {
@@ -35,6 +40,11 @@ export const databaseService = {
 
   async deleteDocument(collectionId: string, documentId: string) {
     return await databases.deleteDocument(DATABASE_ID, collectionId, documentId);
+  },
+
+  async countDocuments(collectionId: string, queries: string[] = []): Promise<number> {
+    const response = await databases.listDocuments(DATABASE_ID, collectionId, [...queries, Query.limit(1)]);
+    return response.total;
   }
 };
 

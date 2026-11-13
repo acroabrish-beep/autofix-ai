@@ -31,6 +31,12 @@ import { Settings } from './pages/Settings';
 import { Repairs } from './pages/Repairs';
 import { RepairDetail } from './pages/RepairDetail';
 import { Search } from './pages/Search';
+import { GlobalDashboard } from './pages/admin/GlobalDashboard';
+import { SchoolDashboard } from './pages/school-admin/SchoolDashboard';
+import { InstructorDashboard } from './pages/instructor/InstructorDashboard';
+import { StudentDashboard } from './pages/student/StudentDashboard';
+import { GarageDashboard } from './pages/garage-admin/GarageDashboard';
+import { MechanicDashboard } from './pages/mechanic/MechanicDashboard';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const LandingPage = () => {
@@ -207,6 +213,60 @@ function App() {
           element={
             <ProtectedRoute>
               <Search />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute>
+              <GlobalDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/school-admin/*"
+          element={
+            <ProtectedRoute allowedRoles={['tvet_admin']}>
+              <SchoolDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/instructor/*"
+          element={
+            <ProtectedRoute allowedRoles={['instructor']}>
+              <InstructorDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/student/*"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/garage-admin/*"
+          element={
+            <ProtectedRoute allowedRoles={['garage_admin']}>
+              <GarageDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/mechanic/*"
+          element={
+            <ProtectedRoute allowedRoles={['mechanic']}>
+              <MechanicDashboard />
             </ProtectedRoute>
           }
         />

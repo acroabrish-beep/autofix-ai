@@ -14,6 +14,10 @@ export interface UserProfile extends Models.Document {
   avatarUrl?: string;
   avatarFileId?: string;
   preferredLanguage: string;
+  institutionId?: string;
+  garageId?: string;
+  phone?: string;
+  specialization?: string;
 }
 
 export interface LearningModule extends Models.Document {
@@ -110,6 +114,44 @@ export interface DiagnosticSession extends Models.Document {
   requestData: DiagnosticRequest;
   result: DiagnosticResponse;
   status: 'active' | 'resolved';
+}
+
+export interface School extends Models.Document {
+  name: string;
+  location: string;
+  adminId: string;
+  status: string;
+}
+
+export interface Garage extends Models.Document {
+  name: string;
+  location: string;
+  ownerId: string;
+  status: string;
+}
+
+export interface Assignment extends Models.Document {
+  title: string;
+  description: string;
+  courseId: string;
+  instructorId: string;
+  dueDate: string;
+}
+
+export interface ServiceRequest extends Models.Document {
+  title: string;
+  description: string;
+  vehicleId: string;
+  garageId: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface Application extends Models.Document {
+  type: 'school' | 'garage';
+  applicantId: string;
+  details: string;
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export interface RepairGuide extends Models.Document {
