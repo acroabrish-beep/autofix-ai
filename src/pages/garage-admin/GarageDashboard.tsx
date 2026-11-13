@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { appwriteAuth } from '../../services/auth/appwriteAuth';
+import { ID } from '../../lib/appwrite';
 import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { UserProfile, ServiceRequest } from '../../types';
@@ -47,7 +47,6 @@ export const GarageDashboard: React.FC = () => {
     email: '',
     phone: '',
     specialization: '',
-    password: '',
   });
 
   const loadCounts = async () => {
@@ -130,14 +129,10 @@ export const GarageDashboard: React.FC = () => {
 
     setCreating(true);
     try {
-      const newUser = await appwriteAuth.register(
-        mechanicForm.email,
-        mechanicForm.password,
-        mechanicForm.name
-      );
-
+      // Demo mode: create a profile record only. In production this would
+      // send an email invite and create the Appwrite Auth account separately.
       await profilesService.createProfile({
-        userId: newUser.$id,
+        userId: ID.unique(),
         fullName: mechanicForm.name,
         email: mechanicForm.email,
         role: 'mechanic' as any,
@@ -146,7 +141,7 @@ export const GarageDashboard: React.FC = () => {
         specialization: mechanicForm.specialization,
       });
 
-      setMechanicForm({ name: '', email: '', phone: '', specialization: '', password: '' });
+      setMechanicForm({ name: '', email: '', phone: '', specialization: '' });
       setFormSuccess('Mechanic registered successfully.');
       await loadMechanics();
       await loadCounts();
@@ -320,16 +315,9 @@ export const GarageDashboard: React.FC = () => {
                         }
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
-                      <input
-                        required
-                        type="password"
-                        placeholder="Temporary password"
-                        value={mechanicForm.password}
-                        onChange={(e) =>
-                          setMechanicForm((prev) => ({ ...prev, password: e.target.value }))
-                        }
-                        className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                      />
+                      <p className="md:col-span-2 text-xs text-slate-400">
+                        Note: For the demo, this creates a profile record. In production, this will send an email invite.
+                      </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"

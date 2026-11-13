@@ -78,9 +78,11 @@ export const InstructorDashboard: React.FC = () => {
 
   const loadAssignments = async () => {
     if (!user) return;
-    const result = await databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS, [
-      Query.equal('instructorId', user.$id),
-    ]);
+    const queries = [Query.equal('instructorId', user.$id)];
+    if (institutionId) {
+      queries.push(Query.equal('institutionId', institutionId));
+    }
+    const result = await databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS, queries);
     setAssignments(result);
   };
 
@@ -150,6 +152,7 @@ export const InstructorDashboard: React.FC = () => {
           description: assignmentForm.description,
           courseId: assignmentForm.courseId,
           instructorId: user.$id,
+          institutionId: institutionId || '',
           dueDate: assignmentForm.dueDate,
         },
         permissions

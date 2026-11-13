@@ -135,6 +135,7 @@ export interface Assignment extends Models.Document {
   description: string;
   courseId: string;
   instructorId: string;
+  institutionId?: string;
   dueDate: string;
 }
 

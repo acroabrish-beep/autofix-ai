@@ -205,6 +205,7 @@ const COLLECTIONS = [
       { key: 'description', size: 1000 },
       { key: 'courseId', size: 255 },
       { key: 'instructorId', size: 255 },
+      { key: 'institutionId', size: 255 },
       { key: 'dueDate', size: 255 },
     ],
   },
@@ -221,6 +222,19 @@ const COLLECTIONS = [
       { key: 'garageId', size: 255 },
       { key: 'status', size: 50 },
       { key: 'createdAt', size: 50 },
+    ],
+  },
+  {
+    id: 'learning_progress',
+    name: 'Learning Progress',
+    // Users may create their own progress; each document grants read/update to its owner.
+    permissions: USERS_CREATE,
+    documentSecurity: true,
+    attributes: [
+      { key: 'studentId', size: 255 },
+      { key: 'courseId', size: 255 },
+      { key: 'progressPercentage', type: 'integer' },
+      { key: 'status', size: 50 },
     ],
   },
 ];
@@ -340,14 +354,14 @@ async function ensureCollection({ id, name, permissions, documentSecurity }) {
   }
 }
 
-async function ensureAttribute(collectionId, { key, size, array }) {
+async function ensureAttribute(collectionId, { key, size, array, type }) {
+  const attributeType = type === 'integer' ? 'integer' : array ? 'string array' : 'string';
+
   try {
     const existing = await databases.getAttribute(databaseId, collectionId, key);
 
     if (existing.status === 'available') {
-      console.log(
-        `  ✓ ${key} (${array ? 'string array' : 'string'}, ${size}) already exists.`
-      );
+      console.log(`  ✓ ${key} (${attributeType}${size ? `, ${size}` : ''}) already exists.`);
     } else {
       console.log(`  … ${key} exists (status: ${existing.status}), waiting...`);
       await waitForAttribute(collectionId, key);
@@ -357,9 +371,20 @@ async function ensureAttribute(collectionId, { key, size, array }) {
     if (error.code !== 404) throw error;
   }
 
-  console.log(`  + ${key} (${array ? 'string array' : 'string'}, ${size})`);
+  console.log(`  + ${key} (${attributeType}${size ? `, ${size}` : ''})`);
 
-  if (array) {
+  if (type === 'integer') {
+    await databases.createIntegerAttribute(
+      databaseId,
+      collectionId,
+      key,
+      ATTRIBUTES_REQUIRED,
+      0,
+      100,
+      null,
+      false
+    );
+  } else if (array) {
     // Array attributes cannot have a default value.
     await databases.createStringAttribute(
       databaseId,

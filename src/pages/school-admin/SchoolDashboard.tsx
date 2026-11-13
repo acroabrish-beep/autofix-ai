@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../hooks/useRole';
-import { appwriteAuth } from '../../services/auth/appwriteAuth';
+import { ID } from '../../lib/appwrite';
 import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { UserProfile } from '../../types';
@@ -51,7 +51,6 @@ export const SchoolDashboard: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    password: '',
   });
 
   const loadCounts = async () => {
@@ -140,14 +139,10 @@ export const SchoolDashboard: React.FC = () => {
 
     setCreating(true);
     try {
-      const newUser = await appwriteAuth.register(
-        instructorForm.email,
-        instructorForm.password,
-        instructorForm.name
-      );
-
+      // Demo mode: create a profile record only. In production this would
+      // send an email invite and create the Appwrite Auth account separately.
       await profilesService.createProfile({
-        userId: newUser.$id,
+        userId: ID.unique(),
         fullName: instructorForm.name,
         email: instructorForm.email,
         role: 'instructor' as any,
@@ -155,7 +150,7 @@ export const SchoolDashboard: React.FC = () => {
         phone: instructorForm.phone,
       });
 
-      setInstructorForm({ name: '', email: '', phone: '', password: '' });
+      setInstructorForm({ name: '', email: '', phone: '' });
       setFormSuccess('Instructor created successfully.');
       await loadInstructors();
       await loadCounts();
@@ -309,16 +304,9 @@ export const SchoolDashboard: React.FC = () => {
                         }
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
-                      <input
-                        required
-                        type="password"
-                        placeholder="Temporary password"
-                        value={instructorForm.password}
-                        onChange={(e) =>
-                          setInstructorForm((prev) => ({ ...prev, password: e.target.value }))
-                        }
-                        className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                      />
+                      <p className="md:col-span-2 text-xs text-slate-400">
+                        Note: For the demo, this creates a profile record. In production, this will send an email invite.
+                      </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"
