@@ -22,6 +22,8 @@ export const COLLECTIONS = {
   AUDIT_LOGS: 'audit_logs',
   DEPARTMENTS: 'departments',
   PROGRAMS: 'programs',
+  CERTIFICATES: 'certificates',
+  PAYMENTS: 'payments',
 };
 
 export const databaseService = {

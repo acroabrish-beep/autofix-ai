@@ -298,6 +298,27 @@ export const GlobalDashboard: React.FC = () => {
     }
   };
 
+  const handleRecordPayment = async (subscription: {
+    id: string;
+    name: string;
+    type: string;
+  }) => {
+    setActionId(subscription.id);
+    try {
+      await databaseService.createDocument(COLLECTIONS.PAYMENTS, {
+        institutionId: subscription.id,
+        amount: '99.00',
+        date: new Date().toISOString(),
+        status: 'paid',
+      }, [Permission.read(Role.users())]);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to record payment.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const displayName = profile?.fullName || user?.name || user?.email || 'Admin';
 
   return (
@@ -672,12 +693,13 @@ export const GlobalDashboard: React.FC = () => {
                             <th className="px-6 py-3 font-semibold">Type</th>
                             <th className="px-6 py-3 font-semibold">Plan</th>
                             <th className="px-6 py-3 font-semibold">Status</th>
+                            <th className="px-6 py-3 font-semibold">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800">
                           {subscriptions.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-10 text-center text-slate-400">
+                              <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
                                 No subscriptions found.
                               </td>
                             </tr>
@@ -697,6 +719,16 @@ export const GlobalDashboard: React.FC = () => {
                                   >
                                     {subscription.status}
                                   </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <button
+                                    type="button"
+                                    disabled={actionId === subscription.id}
+                                    onClick={() => handleRecordPayment(subscription)}
+                                    className="rounded-lg bg-brand-teal px-3 py-2 text-xs font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                                  >
+                                    Record Payment
+                                  </button>
                                 </td>
                               </tr>
                             ))

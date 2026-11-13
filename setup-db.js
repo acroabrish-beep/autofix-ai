@@ -295,8 +295,33 @@ const COLLECTIONS = [
       { key: 'submittedAt', size: 255 },
     ],
   },
+  {
+    id: 'certificates',
+    name: 'Certificates',
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
+    documentSecurity: true,
+    attributes: [
+      { key: 'studentId', size: 255 },
+      { key: 'studentName', size: 255 },
+      { key: 'courseId', size: 255 },
+      { key: 'courseName', size: 255 },
+      { key: 'issueDate', size: 255 },
+      { key: 'certificateUrl', size: 255 },
+    ],
+  },
+  {
+    id: 'payments',
+    name: 'Payments',
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
+    documentSecurity: true,
+    attributes: [
+      { key: 'institutionId', size: 255 },
+      { key: 'amount', size: 50 },
+      { key: 'date', size: 50 },
+      { key: 'status', size: 50 },
+    ],
+  },
 ];
-
 // Set to true if every document must provide each attribute.
 const ATTRIBUTES_REQUIRED = false;
 

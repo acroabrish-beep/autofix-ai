@@ -165,6 +165,22 @@ export interface Assignment extends Models.Document {
   dueDate: string;
 }
 
+export interface Certificate extends Models.Document {
+  studentId: string;
+  studentName: string;
+  courseId: string;
+  courseName: string;
+  issueDate: string;
+  certificateUrl: string;
+}
+
+export interface Payment extends Models.Document {
+  institutionId: string;
+  amount: string;
+  date: string;
+  status: string;
+}
+
 export interface ServiceRequest extends Models.Document {
   title: string;
   description: string;

@@ -5,7 +5,7 @@ import { learningService } from '../../services/database/learning';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { generateChatReply } from '../../services/ai/chat';
 import { Permission, Role } from 'appwrite';
-import { LearningModule, Assignment, Submission } from '../../types';
+import { LearningModule, Assignment, Submission, Certificate } from '../../types';
 import {
   BookOpen,
   ClipboardList,
@@ -37,6 +37,7 @@ export const StudentDashboard: React.FC = () => {
   const [courses, setCourses] = useState<LearningModule[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,10 +69,16 @@ export const StudentDashboard: React.FC = () => {
       setAssignments(assignmentList);
 
       if (user) {
-        const submissionList = await databaseService.listDocuments<Submission>(COLLECTIONS.SUBMISSIONS, [
-          Query.equal('studentId', user.$id),
+        const [submissionList, certificateList] = await Promise.all([
+          databaseService.listDocuments<Submission>(COLLECTIONS.SUBMISSIONS, [
+            Query.equal('studentId', user.$id),
+          ]),
+          databaseService.listDocuments<Certificate>(COLLECTIONS.CERTIFICATES, [
+            Query.equal('studentId', user.$id),
+          ]),
         ]);
         setSubmissions(submissionList);
+        setCertificates(certificateList);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load student data.');
@@ -153,6 +160,31 @@ export const StudentDashboard: React.FC = () => {
       setChatError(err instanceof Error ? err.message : 'Failed to get AI response.');
     } finally {
       setChatLoading(false);
+    }
+  };
+
+  const handleClaimCertificate = async (course: LearningModule) => {
+    if (!user) return;
+
+    const alreadyClaimed = certificates.some((certificate) => certificate.courseId === course.$id);
+    if (alreadyClaimed) return;
+
+    try {
+      await databaseService.createDocument(
+        COLLECTIONS.CERTIFICATES,
+        {
+          studentId: user.$id,
+          studentName: profile?.fullName || user.name || user.email,
+          courseId: course.$id,
+          courseName: course.title,
+          issueDate: new Date().toISOString(),
+          certificateUrl: '',
+        },
+        [Permission.read(Role.users())]
+      );
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to claim certificate.');
     }
   };
 
@@ -445,8 +477,58 @@ export const StudentDashboard: React.FC = () => {
               )}
 
               {activeTab === 'certificates' && (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
-                  Certificates are coming soon.
+                <div className="space-y-6">
+                  <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                    {certificates.length === 0 ? (
+                      <div className="col-span-full rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center text-slate-400">
+                        No certificates claimed yet.
+                      </div>
+                    ) : (
+                      certificates.map((certificate) => (
+                        <div
+                          key={certificate.$id}
+                          className="rounded-2xl border border-brand-teal/30 bg-slate-900 p-6 text-center"
+                        >
+                          <Award className="mx-auto mb-4 h-10 w-10 text-brand-teal" />
+                          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                            AutoFix AI Certified
+                          </p>
+                          <h3 className="mt-3 text-xl font-bold">{certificate.studentName}</h3>
+                          <p className="mt-2 text-sm text-slate-300">{certificate.courseName}</p>
+                          <p className="mt-4 text-xs text-slate-500">
+                            Issued {new Date(certificate.issueDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                    <h3 className="mb-4 text-lg font-bold">Claim a Certificate</h3>
+                    <div className="space-y-3">
+                      {courses.map((course) => {
+                        const claimed = certificates.some(
+                          (certificate) => certificate.courseId === course.$id
+                        );
+                        return (
+                          <div
+                            key={course.$id}
+                            className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3"
+                          >
+                            <span className="text-sm font-medium">{course.title}</span>
+                            <button
+                              type="button"
+                              disabled={claimed}
+                              onClick={() => handleClaimCertificate(course)}
+                              className="rounded-lg bg-brand-teal px-3 py-2 text-xs font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                            >
+                              {claimed ? 'Claimed' : 'Claim Certificate'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </>
