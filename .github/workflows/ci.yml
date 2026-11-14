@@ -1,0 +1,31 @@
+name: AutoFix AI CI
+
+on:
+  push:
+    branches:
+      - main
+      - fix/global-admin-route-guard
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Test staff invitation authorization
+        working-directory: appwrite/functions/staff-invitations
+        run: |
+          npm test
+          node --check index.js
