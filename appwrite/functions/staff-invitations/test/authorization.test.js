@@ -1,63 +1,43 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authorizeStaffInvitation } from '../authorization.js';
+import { authorizeStaffInvitation, validateInviteInput, profilePermissions } from '../authorization.js';
 
-test('TVET admin can invite an instructor only into the actor institution', () => {
-  const result = authorizeStaffInvitation(
-    { userId: 'school-admin-1', role: 'tvet_admin', institutionId: 'school-A' },
-    'instructor',
-    'attacker-school'
-  );
-  assert.deepEqual(result, { role: 'instructor', institutionId: 'school-A', garageId: null });
+test('TVET admin scope comes from actor, not forged tenant id', () => {
+  assert.deepEqual(authorizeStaffInvitation(
+    { userId: 'school-admin', role: 'tvet_admin', institutionId: 'school-A' }, 'instructor', 'attacker'
+  ), { role: 'instructor', institutionId: 'school-A', garageId: null, collectionId: 'schools' });
 });
-
-test('garage admin can invite a mechanic only into the actor garage', () => {
-  const result = authorizeStaffInvitation(
-    { userId: 'garage-admin-1', role: 'garage_admin', garageId: 'garage-A' },
-    'mechanic',
-    'attacker-garage'
-  );
-  assert.deepEqual(result, { role: 'mechanic', institutionId: null, garageId: 'garage-A' });
+test('Garage admin scope comes from actor, not forged tenant id', () => {
+  assert.deepEqual(authorizeStaffInvitation(
+    { userId: 'garage-admin', role: 'garage_admin', garageId: 'garage-A' }, 'mechanic', 'attacker'
+  ), { role: 'mechanic', institutionId: null, garageId: 'garage-A', collectionId: 'garages' });
 });
-
-test('TVET admin cannot invite mechanics', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'school-admin-1', role: 'tvet_admin', institutionId: 'school-A' },
-    'mechanic', 'garage-A'
+test('TVET admin cannot invite mechanic', () => assert.throws(() => authorizeStaffInvitation(
+  { userId: 'school-admin', role: 'tvet_admin', institutionId: 'school-A' }, 'mechanic', 'garage-A'
+), { code: 'FORBIDDEN' }));
+test('Garage admin cannot invite instructor', () => assert.throws(() => authorizeStaffInvitation(
+  { userId: 'garage-admin', role: 'garage_admin', garageId: 'garage-A' }, 'instructor', 'school-A'
+), { code: 'FORBIDDEN' }));
+test('Student cannot invite staff', () => assert.throws(() => authorizeStaffInvitation(
+  { userId: 'student', role: 'student' }, 'instructor', 'school-A'
+), { code: 'FORBIDDEN' }));
+test('Non-active actors cannot invite staff', () => {
+  for (const status of ['suspended', 'pending', 'disabled']) assert.throws(() => authorizeStaffInvitation(
+    { userId: 'admin', role: 'tvet_admin', institutionId: 'school-A', status }, 'instructor', 'school-A'
   ), { code: 'FORBIDDEN' });
 });
-
-test('garage admin cannot invite instructors', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'garage-admin-1', role: 'garage_admin', garageId: 'garage-A' },
-    'instructor', 'school-A'
-  ), { code: 'FORBIDDEN' });
+test('Global admin must choose a tenant and cannot assign arbitrary roles', () => {
+  const actor = { userId: 'global', role: 'global_admin' };
+  assert.throws(() => authorizeStaffInvitation(actor, 'instructor', ''), { code: 'FORBIDDEN' });
+  assert.throws(() => authorizeStaffInvitation(actor, 'global_admin', 'school-A'), { code: 'FORBIDDEN' });
 });
-
-test('student cannot invite staff', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'student-1', role: 'student', institutionId: 'school-A' },
-    'instructor', 'school-A'
-  ), { code: 'FORBIDDEN' });
+test('Input normalizes email and validates required fields', () => {
+  assert.deepEqual(validateInviteInput({
+    fullName: ' Demo Instructor ', email: ' DEMO@EXAMPLE.COM ', role: 'instructor', tenantId: 'school-A',
+  }), { fullName: 'Demo Instructor', email: 'demo@example.com', role: 'instructor', tenantId: 'school-A', phone: '', specialization: '' });
+  assert.throws(() => validateInviteInput({ fullName: 'A', email: 'bad', role: 'instructor' }), { code: 'INVALID_INPUT' });
 });
-
-test('suspended admin cannot invite staff', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'school-admin-1', role: 'tvet_admin', institutionId: 'school-A', status: 'suspended' },
-    'instructor', 'school-A'
-  ), { code: 'FORBIDDEN' });
-});
-
-test('unknown role cannot be provisioned', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'global-1', role: 'global_admin' },
-    'global_admin', 'school-A'
-  ), { code: 'FORBIDDEN' });
-});
-
-test('global admin must explicitly select a tenant', () => {
-  assert.throws(() => authorizeStaffInvitation(
-    { userId: 'global-1', role: 'global_admin' },
-    'instructor', ''
-  ), { code: 'FORBIDDEN' });
+test('Profile permissions allow read only to new user and inviter', () => {
+  assert.deepEqual(profilePermissions('new', 'inviter'), ['read("user:new")', 'read("user:inviter")']);
+  assert.deepEqual(profilePermissions('new', 'new'), ['read("user:new")']);
 });
