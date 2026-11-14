@@ -123,6 +123,19 @@ async function scopedProfiles(actorProfile, schoolProfiles = false) {
     garageId: p.garageId, status: p.status,
   }));
 }
+async function globalProfiles(actorProfile) {
+  if (actorProfile.role !== 'global_admin') {
+    throw Object.assign(new Error('Global administrator access is required.'), { code: 'FORBIDDEN' });
+  }
+  const result = await call(`/databases/${databaseId}/collections/profiles/documents?limit=100`);
+  const profiles = (result?.documents || []).map(p => ({
+    $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email,
+    phone: p.phone || '', specialization: p.specialization || '', role: p.role,
+    institutionId: p.institutionId, garageId: p.garageId, status: p.status,
+  }));
+  return { profiles, total: result?.total ?? profiles.length };
+}
+
 async function updateOwnProfile(account, raw) {
   const profile = await profileFor(account.$id);
   if (!profile) throw Object.assign(new Error('Profile not found.'), { code: 'NOT_FOUND' });
@@ -149,6 +162,7 @@ export default async ({ req, res, error }) => {
     if (body.action === 'invite_staff') return reply(res, { success: true, data: await inviteStaff(account, actorProfile, body.payload) }, 201);
     if (body.action === 'list_staff') return reply(res, { success: true, data: await scopedProfiles(actorProfile) });
     if (body.action === 'list_tenant_profiles') return reply(res, { success: true, data: await scopedProfiles(actorProfile, true) });
+    if (body.action === 'list_global_profiles') return reply(res, { success: true, data: await globalProfiles(actorProfile) });
     if (body.action === 'update_self_profile') return reply(res, { success: true, data: await updateOwnProfile(account, body.payload) });
     return reply(res, { error: 'Unsupported action.' }, 400);
   } catch (err) {
