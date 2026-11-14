@@ -1,5 +1,5 @@
 import { databaseService, COLLECTIONS, Query } from './index';
-import { UserProfile, UserRole } from '../../types';
+import { UserProfile } from '../../types';
 import { Permission, Role } from 'appwrite';
 
 export const profilesService = {
@@ -16,41 +16,31 @@ export const profilesService = {
     }
   },
 
+  /**
+   * Public client registration can create student profiles only.
+   * Staff roles and tenant assignments must be provisioned by a trusted
+   * server-side invitation workflow, never by a browser-supplied flag.
+   */
   async createProfile(data: {
     userId: string;
     fullName: string;
     email: string;
-    role?: UserRole;
-    institutionId?: string;
-    garageId?: string;
     phone?: string;
-    specialization?: string;
-    privileged?: boolean;
   }): Promise<UserProfile> {
-    // Non-privileged callers (such as public registration) can only create a
-    // standard student profile. Privileged fields are ignored unless an admin
-    // flow explicitly opts in.
-    const privileged = data.privileged === true;
-
-    const profileData: Record<string, any> = {
+    const now = new Date().toISOString();
+    const profileData: Record<string, unknown> = {
       userId: data.userId,
       fullName: data.fullName,
       email: data.email,
-      role: privileged ? data.role || 'student' : 'student',
+      role: 'student',
       avatarFileId: '',
       preferredLanguage: 'en',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    if (privileged) {
-      if (data.institutionId) profileData.institutionId = data.institutionId;
-      if (data.garageId) profileData.garageId = data.garageId;
-    }
     if (data.phone) profileData.phone = data.phone;
-    if (data.specialization) profileData.specialization = data.specialization;
 
-    // Set permissions so only the user can read/update their profile
     const permissions = [
       Permission.read(Role.user(data.userId)),
       Permission.update(Role.user(data.userId)),
@@ -63,21 +53,20 @@ export const profilesService = {
     );
   },
 
+  /**
+   * Client profile edits cannot change authorization or tenant ownership.
+   * Those fields require a separately authenticated server-side workflow.
+   */
   async updateProfile(
     profileId: string,
-    data: Partial<UserProfile>,
-    options?: { privileged?: boolean }
+    data: Partial<UserProfile>
   ): Promise<UserProfile> {
-    const privileged = options?.privileged === true;
-    const updateData: Record<string, any> = { ...data };
-
-    // Prevent non-privileged client flows from escalating roles or moving a
-    // profile between tenants.
-    if (!privileged) {
-      delete updateData.role;
-      delete updateData.institutionId;
-      delete updateData.garageId;
-    }
+    const updateData: Record<string, unknown> = { ...data };
+    delete updateData.role;
+    delete updateData.institutionId;
+    delete updateData.garageId;
+    delete updateData.userId;
+    delete updateData.status;
 
     return await databaseService.updateDocument<UserProfile>(
       COLLECTIONS.PROFILES,
@@ -87,5 +76,5 @@ export const profilesService = {
         updatedAt: new Date().toISOString(),
       }
     );
-  }
+  },
 };
