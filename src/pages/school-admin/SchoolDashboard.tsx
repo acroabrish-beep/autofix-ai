@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../hooks/useRole';
-import { ID } from '../../lib/appwrite';
-import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { Permission, Role } from 'appwrite';
 import { UserProfile, Department, Program, LearningModule } from '../../types';
@@ -45,7 +43,6 @@ export const SchoolDashboard: React.FC = () => {
   const [students, setStudents] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
@@ -173,39 +170,10 @@ export const SchoolDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const handleAddInstructor = async (event: React.FormEvent) => {
+  const handleAddInstructor = (event: React.FormEvent) => {
     event.preventDefault();
-    setFormError(null);
     setFormSuccess(null);
-
-    if (!institutionId) {
-      setFormError('Your account is not linked to a school.');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      // Demo mode: create a profile record only. In production this would
-      // send an email invite and create the Appwrite Auth account separately.
-      await profilesService.createProfile({
-        userId: ID.unique(),
-        fullName: instructorForm.name,
-        email: instructorForm.email,
-        role: 'instructor' as any,
-        institutionId,
-        phone: instructorForm.phone,
-        privileged: true,
-      });
-
-      setInstructorForm({ name: '', email: '', phone: '' });
-      setFormSuccess('Instructor created successfully.');
-      await loadInstructors();
-      await loadCounts();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create instructor.');
-    } finally {
-      setCreating(false);
-    }
+    setFormError('Secure instructor invitations are not configured yet. No instructor account or profile was created.');
   };
 
   const handleAddDepartment = async (event: React.FormEvent) => {
@@ -440,19 +408,15 @@ export const SchoolDashboard: React.FC = () => {
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
                       <p className="md:col-span-2 text-xs text-slate-400">
-                        Note: For the demo, this creates a profile record. In production, this will send an email invite.
+                        Staff invitations are temporarily unavailable until the secure server-side invitation and account-activation workflow is configured. No account is created by this form.
                       </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"
-                          disabled={creating || !institutionId}
+                          disabled={true}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
                         >
-                          {creating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <UserPlus className="h-4 w-4" />
-                          )}
+                          <UserPlus className="h-4 w-4" />
                           Add Instructor
                         </button>
                       </div>
