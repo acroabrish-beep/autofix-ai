@@ -36,7 +36,7 @@ async function call(path, options = {}, withKey = true) {
   return data;
 }
 async function authenticatedAccount(req) {
-  const jwt = req.headers?.['x-appwrite-user-jwt'];
+  const jwt = req.headers?.['x-autofix-user-jwt'] || req.headers?.['x-appwrite-user-jwt'];
   if (typeof jwt !== 'string' || !jwt) return null;
   try { return await call('/account', { method: 'GET', headers: { 'X-Appwrite-JWT': jwt } }, false); }
   catch { return null; }
