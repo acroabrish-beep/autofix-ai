@@ -5,7 +5,7 @@ const STAFF_INVITATIONS_FUNCTION_ID =
   'staff-invitations';
 
 export async function runStaffFunction<T>(
-  action: 'bootstrap_student' | 'invite_staff' | 'list_staff' | 'list_tenant_profiles' | 'list_global_profiles' | 'get_service_request_owner' | 'update_self_profile',
+  action: 'bootstrap_student' | 'invite_staff' | 'list_staff' | 'list_tenant_profiles' | 'list_global_profiles' | 'get_service_request_details' | 'update_self_profile',
   payload?: unknown
 ): Promise<T> {
   const execution = await functions.createExecution({
