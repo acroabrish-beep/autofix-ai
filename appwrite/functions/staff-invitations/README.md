@@ -14,9 +14,9 @@ Dedicated Appwrite Function source. This branch updates the implementation for t
 ## Data and authentication
 - Uses TablesDB `/tablesdb/{databaseId}/tables/{tableId}/rows` endpoints for `profiles`, `schools`, `garages`, `service_requests`, and `vehicles`.
 - Uses Appwrite Users API for Auth user creation/deletion.
-- Identity is verified by validating the injected `x-appwrite-user-jwt` against `/account` in the original project.
+- Identity is verified by validating the custom `x-autofix-user-jwt` header against `/account` in the original project. The frontend must generate a JWT from the original AutoFix AI project (`account.createJWT()`) and pass it as this custom Function execution header. The Function's own-project `x-appwrite-user-jwt` is only a fallback and must not be treated as an original-project token.
 - Body actor IDs, client role fields, and tenant IDs from TVET/Garage Admins are not trusted.
-- Do not deploy until cross-project JWT forwarding from the original project to this Function project is verified end-to-end.
+- The frontend must send the original-project JWT using the custom `x-autofix-user-jwt` execution header. Never send an original-project JWT as the reserved `x-appwrite-user-jwt` header; Appwrite controls that header for its own Function project.
 
 ## Required configuration
 Runtime: Node.js 26. Entrypoint: `index.js`. Execute permission: `Any` (the function independently verifies the JWT).
