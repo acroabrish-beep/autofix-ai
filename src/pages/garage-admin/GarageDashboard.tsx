@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { ID } from '../../lib/appwrite';
-import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { UserProfile, ServiceRequest } from '../../types';
 import {
@@ -44,7 +42,6 @@ export const GarageDashboard: React.FC = () => {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -133,38 +130,10 @@ export const GarageDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const handleAddMechanic = async (event: React.FormEvent) => {
+  const handleAddMechanic = (event: React.FormEvent) => {
     event.preventDefault();
-    setFormError(null);
     setFormSuccess(null);
-
-    if (!garageId) {
-      setFormError('Your account is not linked to a garage.');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      await profilesService.createProfile({
-        userId: ID.unique(),
-        fullName: mechanicForm.name,
-        email: mechanicForm.email,
-        role: 'mechanic' as any,
-        garageId,
-        phone: mechanicForm.phone,
-        specialization: mechanicForm.specialization,
-        privileged: true,
-      });
-
-      setMechanicForm({ name: '', email: '', phone: '', specialization: '' });
-      setFormSuccess('Mechanic registered successfully.');
-      await loadMechanics();
-      await loadCounts();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to register mechanic.');
-    } finally {
-      setCreating(false);
-    }
+    setFormError('Secure mechanic invitations are not configured yet. No mechanic account or profile was created.');
   };
 
   const handleRequestStatus = async (request: ServiceRequest, status: string) => {
@@ -427,19 +396,15 @@ export const GarageDashboard: React.FC = () => {
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
                       <p className="md:col-span-2 text-xs text-slate-400">
-                        Note: For the demo, this creates a profile record. In production, this will send an email invite.
+                        Staff invitations are temporarily unavailable until the secure server-side invitation and account-activation workflow is configured. No account is created by this form.
                       </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"
-                          disabled={creating || !garageId}
+                          disabled={true}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
                         >
-                          {creating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <UserPlus className="h-4 w-4" />
-                          )}
+                          <UserPlus className="h-4 w-4" />
                           Register Mechanic
                         </button>
                       </div>
