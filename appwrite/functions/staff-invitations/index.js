@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { authorizeStaffInvitation, validateInviteInput, profilePermissions, sanitizeProfileUpdate } from './authorization.js';
+import { authorizeStaffInvitation, validateInviteInput, profilePermissions, sanitizeProfileUpdate, resolveProfileListScope, assertGlobalAdmin, assertGarageRequestAccess } from './authorization.js';
 
 const endpoint = process.env.APPWRITE_ENDPOINT;
 const projectId = process.env.APPWRITE_PROJECT_ID;
@@ -110,35 +110,20 @@ async function inviteStaff(account, actorProfile, raw) {
   return { userId: user.$id, email: input.email, role: scope.role, institutionId: scope.institutionId, garageId: scope.garageId, invitationSent: true };
 }
 async function scopedProfiles(actorProfile, schoolProfiles = false) {
-  let field, tenantId, role;
-  let allowedRoles = [];
-  if (actorProfile.role === 'tvet_admin' && actorProfile.institutionId && schoolProfiles) {
-    field = 'institutionId'; tenantId = actorProfile.institutionId; allowedRoles = ['student', 'instructor'];
-  } else if (actorProfile.role === 'instructor' && actorProfile.institutionId && schoolProfiles) {
-    field = 'institutionId'; tenantId = actorProfile.institutionId; allowedRoles = ['student'];
-  } else if (actorProfile.role === 'tvet_admin' && actorProfile.institutionId) {
-    field = 'institutionId'; tenantId = actorProfile.institutionId; role = 'instructor';
-  } else if (actorProfile.role === 'garage_admin' && actorProfile.garageId && !schoolProfiles) {
-    field = 'garageId'; tenantId = actorProfile.garageId; role = 'mechanic';
-  } else throw Object.assign(new Error('Your account cannot list profiles for this tenant.'), { code: 'FORBIDDEN' });
-  const result = await call(`/databases/${databaseId}/collections/profiles/documents?queries[]=${q(field, tenantId)}&limit=100`);
-  return (result?.documents || []).filter(p => schoolProfiles ? allowedRoles.includes(p.role) : p.role === role).map(p => ({
+  const scope = resolveProfileListScope(actorProfile, schoolProfiles ? 'school' : 'staff');
+  const result = await call(`/databases/${databaseId}/collections/profiles/documents?queries[]=${q(scope.field, scope.tenantId)}&limit=100`);
+  return (result?.documents || []).filter(p => scope.roles.includes(p.role)).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email, phone: p.phone || '',
     specialization: p.specialization || '', role: p.role, institutionId: p.institutionId,
     garageId: p.garageId, status: p.status,
   }));
 }
 async function serviceRequestDetails(actorProfile, requestId) {
-  if (actorProfile.role !== 'garage_admin' || !actorProfile.garageId) {
-    throw Object.assign(new Error('Garage administrator access is required.'), { code: 'FORBIDDEN' });
-  }
   if (typeof requestId !== 'string' || !requestId) {
     throw Object.assign(new Error('Service request ID is required.'), { code: 'INVALID_INPUT' });
   }
   const request = await call(`/databases/${databaseId}/collections/service_requests/documents/${encodeURIComponent(requestId)}`);
-  if (request.garageId !== actorProfile.garageId) {
-    throw Object.assign(new Error('This service request does not belong to your garage.'), { code: 'FORBIDDEN' });
-  }
+  assertGarageRequestAccess(actorProfile, request);
   if (!request.vehicleId) return { vehicle: null, owner: null };
   const vehicle = await call(`/databases/${databaseId}/collections/vehicles/documents/${encodeURIComponent(request.vehicleId)}`);
   if (!vehicle.userId) return { vehicle: { make: vehicle.make, model: vehicle.model, year: vehicle.year, engine: vehicle.engine }, owner: null };
@@ -150,9 +135,7 @@ async function serviceRequestDetails(actorProfile, requestId) {
 }
 
 async function globalProfiles(actorProfile) {
-  if (actorProfile.role !== 'global_admin') {
-    throw Object.assign(new Error('Global administrator access is required.'), { code: 'FORBIDDEN' });
-  }
+  assertGlobalAdmin(actorProfile);
   const result = await call(`/databases/${databaseId}/collections/profiles/documents?limit=100`);
   const profiles = (result?.documents || []).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email,
