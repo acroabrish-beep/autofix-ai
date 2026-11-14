@@ -1,6 +1,15 @@
 import { Models } from 'appwrite';
 
-export type UserRole = 'student' | 'mechanic' | 'teacher' | 'vehicle_owner' | 'admin';
+export type UserRole =
+  | 'global_admin'
+  | 'tvet_admin'
+  | 'instructor'
+  | 'student'
+  | 'garage_admin'
+  | 'mechanic'
+  | 'vehicle_owner'
+  | 'teacher'
+  | 'admin';
 
 export interface User extends Models.User<Models.Preferences> {
   role?: UserRole;
