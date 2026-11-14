@@ -1,4 +1,4 @@
-import { Client, Account, Databases, Storage, ID } from 'appwrite';
+import { Client, Account, Databases, Storage, Functions, ID } from 'appwrite';
 
 /**
  * Single source of truth for the Appwrite SDK.
@@ -46,6 +46,7 @@ if (projectId) {
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
+export const functions = new Functions(client);
 
 /** Database ID from the environment, with a fallback for local development. */
 export const DATABASE_ID = databaseId || 'autofix-ai-db';
