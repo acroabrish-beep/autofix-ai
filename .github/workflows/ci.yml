@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fix/global-admin-route-guard
+      - fix/staff-invitations-tablesdb
   pull_request:
     branches:
       - main
