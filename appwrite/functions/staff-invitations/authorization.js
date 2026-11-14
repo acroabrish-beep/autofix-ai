@@ -50,3 +50,27 @@ export function profilePermissions(userId, invitedBy) {
   if (invitedBy && invitedBy !== userId) permissions.push(`read("user:${invitedBy}")`);
   return permissions;
 }
+
+export function sanitizeProfileUpdate(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw Object.assign(new Error('Profile update data is required.'), { code: 'INVALID_INPUT' });
+  }
+  const data = {};
+  if (typeof raw.fullName === 'string') {
+    const name = raw.fullName.trim();
+    if (name.length < 2 || name.length > 255) {
+      throw Object.assign(new Error('Full name is invalid.'), { code: 'INVALID_INPUT' });
+    }
+    data.fullName = name;
+  }
+  if (typeof raw.preferredLanguage === 'string' && ['en', 'am', 'sid'].includes(raw.preferredLanguage)) {
+    data.preferredLanguage = raw.preferredLanguage;
+  }
+  if (typeof raw.avatarFileId === 'string' && raw.avatarFileId.length <= 255) {
+    data.avatarFileId = raw.avatarFileId;
+  }
+  if (!Object.keys(data).length) {
+    throw Object.assign(new Error('No supported profile fields were supplied.'), { code: 'INVALID_INPUT' });
+  }
+  return data;
+}
