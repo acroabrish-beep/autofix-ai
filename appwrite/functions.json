@@ -8,7 +8,7 @@
     "buildSpecification": "s-1vcpu-512mb",
     "runtimeSpecification": "s-0.5vcpu-512mb",
     "deploymentRetention": 7,
-    "scopes": ["users.write", "rows.read", "rows.write"],
+    "scopes": [],
     "execute": ["any"],
     "events": [],
     "schedule": "",
