@@ -1,0 +1,21 @@
+[
+  {
+    "$id": "staff-invitations",
+    "name": "staff-invitations",
+    "enabled": true,
+    "logging": true,
+    "runtime": "node-26",
+    "buildSpecification": "s-1vcpu-512mb",
+    "runtimeSpecification": "s-0.5vcpu-512mb",
+    "deploymentRetention": 7,
+    "scopes": ["users.write", "databases.read", "databases.write"],
+    "execute": ["any"],
+    "events": [],
+    "schedule": "",
+    "timeout": 30,
+    "entrypoint": "index.js",
+    "commands": "npm install",
+    "ignore": "node_modules\n.tmp",
+    "path": "functions/staff-invitations"
+  }
+]
