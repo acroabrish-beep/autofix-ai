@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRole } from '../../hooks/useRole';
+import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { Permission, Role } from 'appwrite';
 import { UserProfile, Department, Program, LearningModule } from '../../types';
@@ -44,6 +45,7 @@ export const SchoolDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   const [instructorForm, setInstructorForm] = useState({
@@ -73,41 +75,27 @@ export const SchoolDashboard: React.FC = () => {
   const loadCounts = async () => {
     if (!institutionId) return;
 
-    const [studentCount, instructorCount, courseCount] = await Promise.all([
-      databaseService.countDocuments(COLLECTIONS.PROFILES, [
-        Query.equal('institutionId', institutionId),
-        Query.equal('role', 'student'),
-      ]),
-      databaseService.countDocuments(COLLECTIONS.PROFILES, [
-        Query.equal('institutionId', institutionId),
-        Query.equal('role', 'instructor'),
-      ]),
+    const [tenantProfiles, courseCount] = await Promise.all([
+      profilesService.listTenantProfiles(),
       databaseService.countDocuments(COLLECTIONS.LEARNING_MODULES),
     ]);
-
     setCounts({
-      students: studentCount,
-      instructors: instructorCount,
+      students: tenantProfiles.filter((item) => item.role === 'student').length,
+      instructors: tenantProfiles.filter((item) => item.role === 'instructor').length,
       courses: courseCount,
     });
   };
 
   const loadInstructors = async () => {
     if (!institutionId) return;
-    const result = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES, [
-      Query.equal('institutionId', institutionId),
-      Query.equal('role', 'instructor'),
-    ]);
-    setInstructors(result);
+    const result = await profilesService.listTenantProfiles();
+    setInstructors(result.filter((item) => item.role === 'instructor'));
   };
 
   const loadStudents = async () => {
     if (!institutionId) return;
-    const result = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES, [
-      Query.equal('institutionId', institutionId),
-      Query.equal('role', 'student'),
-    ]);
-    setStudents(result);
+    const result = await profilesService.listTenantProfiles();
+    setStudents(result.filter((item) => item.role === 'student'));
   };
 
   const loadCourses = async () => {
@@ -170,10 +158,27 @@ export const SchoolDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const handleAddInstructor = (event: React.FormEvent) => {
+  const handleAddInstructor = async (event: React.FormEvent) => {
     event.preventDefault();
+    setFormError(null);
     setFormSuccess(null);
-    setFormError('Secure instructor invitations are not configured yet. No instructor account or profile was created.');
+    setCreating(true);
+    try {
+      await profilesService.inviteStaff({
+        fullName: instructorForm.name,
+        email: instructorForm.email,
+        phone: instructorForm.phone,
+        role: 'instructor',
+      });
+      setInstructorForm({ name: '', email: '', phone: '' });
+      setFormSuccess('Invitation email sent. The instructor must set a password before signing in.');
+      await loadInstructors();
+      await loadCounts();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to send instructor invitation.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleAddDepartment = async (event: React.FormEvent) => {
@@ -408,15 +413,15 @@ export const SchoolDashboard: React.FC = () => {
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
                       <p className="md:col-span-2 text-xs text-slate-400">
-                        Staff invitations are temporarily unavailable until the secure server-side invitation and account-activation workflow is configured. No account is created by this form.
+                        An invitation email will be sent. The instructor must use the link to set a password before signing in.
                       </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"
-                          disabled={true}
+                          disabled={creating}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
                         >
-                          <UserPlus className="h-4 w-4" />
+                          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />
                           Add Instructor
                         </button>
                       </div>
