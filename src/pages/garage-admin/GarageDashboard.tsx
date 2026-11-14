@@ -27,7 +27,7 @@ interface Counts {
 }
 
 interface RequestDetails {
-  vehicle: any | null;
+  vehicle: { make?: string; model?: string; year?: number | string; engine?: string } | null;
   owner: UserProfile | null;
 }
 
@@ -203,12 +203,8 @@ export const GarageDashboard: React.FC = () => {
     setNoteDraft('');
 
     try {
-      const vehicle = await databaseService.getDocument<any>(COLLECTIONS.VEHICLES, request.vehicleId);
-      let owner: UserProfile | null = null;
-      if (vehicle?.userId) {
-        owner = await profilesService.getServiceRequestOwner(request.$id);
-      }
-      setRequestDetails({ vehicle, owner });
+      const details = await profilesService.getServiceRequestDetails(request.$id);
+      setRequestDetails(details);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load request details.');
     } finally {
