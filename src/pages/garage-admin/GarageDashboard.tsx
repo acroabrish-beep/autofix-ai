@@ -417,7 +417,7 @@ export const GarageDashboard: React.FC = () => {
                           disabled={creating}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
                         >
-                          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />
+                          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
                           Register Mechanic
                         </button>
                       </div>
