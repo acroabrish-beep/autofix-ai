@@ -44,6 +44,7 @@ export const InstructorDashboard: React.FC = () => {
   const [materialCourseId, setMaterialCourseId] = useState('');
   const [materialFile, setMaterialFile] = useState<File | null>(null);
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [materialSuccess, setMaterialSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -253,6 +254,7 @@ export const InstructorDashboard: React.FC = () => {
       setMaterialDescription('');
       setMaterialCourseId('');
       setMaterialFile(null);
+      setMaterialSuccess('Course material uploaded successfully.');
       await loadMaterials();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload course material.');
@@ -472,6 +474,12 @@ export const InstructorDashboard: React.FC = () => {
 
                   <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
                     <h3 className="mb-4 text-lg font-bold">Upload Course Material</h3>
+                    {materialSuccess && (
+                      <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand-teal/30 bg-brand-teal/10 p-3 text-sm text-brand-teal">
+                        <CheckCircle2 className="h-4 w-4" />
+                        {materialSuccess}
+                      </div>
+                    )}
                     <form onSubmit={handleUploadMaterial} className="grid gap-4 md:grid-cols-2">
                       <input
                         required

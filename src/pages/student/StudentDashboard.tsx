@@ -73,7 +73,11 @@ export const StudentDashboard: React.FC = () => {
               Query.equal('institutionId', institutionId),
             ])
           : databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS),
-        databaseService.listDocuments<CourseMaterial>(COLLECTIONS.COURSE_MATERIALS),
+        institutionId
+          ? databaseService.listDocuments<CourseMaterial>(COLLECTIONS.COURSE_MATERIALS, [
+              Query.equal('institutionId', institutionId),
+            ])
+          : databaseService.listDocuments<CourseMaterial>(COLLECTIONS.COURSE_MATERIALS),
       ]);
       setCourses(courseList);
       setAssignments(assignmentList);

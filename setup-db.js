@@ -314,9 +314,9 @@ const COLLECTIONS = [
   {
     id: 'payments',
     name: 'Payments',
-    // Only the server API key creates/updates payments. Clients can read
-    // their own payment documents through document-level permissions.
-    permissions: [Permission.read(Role.users())],
+    // Clients may create payment records for their institution; document-level
+    // permissions control which users can read/update each payment.
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
     documentSecurity: true,
     attributes: [
       { key: 'institutionId', size: 255 },
