@@ -206,10 +206,7 @@ export const GarageDashboard: React.FC = () => {
       const vehicle = await databaseService.getDocument<any>(COLLECTIONS.VEHICLES, request.vehicleId);
       let owner: UserProfile | null = null;
       if (vehicle?.userId) {
-        const profiles = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES, [
-          Query.equal('userId', vehicle.userId),
-        ]);
-        owner = profiles[0] || null;
+        owner = await profilesService.getServiceRequestOwner(request.$id);
       }
       setRequestDetails({ vehicle, owner });
     } catch (err) {
