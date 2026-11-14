@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { authorizeStaffInvitation, validateInviteInput, profilePermissions } from './authorization.js';
+import { authorizeStaffInvitation, validateInviteInput, profilePermissions, sanitizeProfileUpdate } from './authorization.js';
 
 const endpoint = process.env.APPWRITE_ENDPOINT;
 const projectId = process.env.APPWRITE_PROJECT_ID;
@@ -126,16 +126,7 @@ async function scopedProfiles(actorProfile, schoolProfiles = false) {
 async function updateOwnProfile(account, raw) {
   const profile = await profileFor(account.$id);
   if (!profile) throw Object.assign(new Error('Profile not found.'), { code: 'NOT_FOUND' });
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Object.assign(new Error('Profile update data is required.'), { code: 'INVALID_INPUT' });
-  const data = {};
-  if (typeof raw.fullName === 'string') {
-    const name = raw.fullName.trim();
-    if (name.length < 2 || name.length > 255) throw Object.assign(new Error('Full name is invalid.'), { code: 'INVALID_INPUT' });
-    data.fullName = name;
-  }
-  if (typeof raw.preferredLanguage === 'string' && ['en', 'am', 'sid'].includes(raw.preferredLanguage)) data.preferredLanguage = raw.preferredLanguage;
-  if (typeof raw.avatarFileId === 'string' && raw.avatarFileId.length <= 255) data.avatarFileId = raw.avatarFileId;
-  if (!Object.keys(data).length) throw Object.assign(new Error('No supported profile fields were supplied.'), { code: 'INVALID_INPUT' });
+  const data = sanitizeProfileUpdate(raw);
   data.updatedAt = new Date().toISOString();
   return call(`/databases/${databaseId}/collections/profiles/documents/${encodeURIComponent(profile.$id)}`, {
     method: 'PATCH', body: JSON.stringify({ data }),
