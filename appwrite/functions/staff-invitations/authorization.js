@@ -74,3 +74,32 @@ export function sanitizeProfileUpdate(raw) {
   }
   return data;
 }
+
+export function resolveProfileListScope(actor, mode) {
+  if (mode === 'school' && actor?.role === 'tvet_admin' && actor.institutionId) {
+    return { field: 'institutionId', tenantId: actor.institutionId, roles: ['student', 'instructor'] };
+  }
+  if (mode === 'school' && actor?.role === 'instructor' && actor.institutionId) {
+    return { field: 'institutionId', tenantId: actor.institutionId, roles: ['student'] };
+  }
+  if (mode === 'staff' && actor?.role === 'tvet_admin' && actor.institutionId) {
+    return { field: 'institutionId', tenantId: actor.institutionId, roles: ['instructor'] };
+  }
+  if (mode === 'staff' && actor?.role === 'garage_admin' && actor.garageId) {
+    return { field: 'garageId', tenantId: actor.garageId, roles: ['mechanic'] };
+  }
+  deny('Your account cannot list profiles for this tenant.');
+}
+
+export function assertGlobalAdmin(actor) {
+  if (actor?.role !== 'global_admin') deny('Global administrator access is required.');
+}
+
+export function assertGarageRequestAccess(actor, request) {
+  if (actor?.role !== 'garage_admin' || !actor.garageId) {
+    deny('Garage administrator access is required.');
+  }
+  if (!request || request.garageId !== actor.garageId) {
+    deny('This service request does not belong to your garage.');
+  }
+}
