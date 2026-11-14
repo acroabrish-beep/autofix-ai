@@ -1,0 +1,8 @@
+{
+  "projectId": "6a771db30008e6017e74",
+  "projectName": "AutoFix AI",
+  "endpoint": "https://fra.cloud.appwrite.io/v1",
+  "includes": {
+    "functions": "appwrite/functions.json"
+  }
+}
