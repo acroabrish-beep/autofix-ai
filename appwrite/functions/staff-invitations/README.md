@@ -1,39 +1,37 @@
-# Staff invitation authorization (not deployed)
+# AutoFix AI — Staff Invitations Function
 
-This module contains the role/tenant policy for the planned server-side staff
-invitation Function. It is intentionally not wired to the production Appwrite
-project yet.
+Dedicated Appwrite Function source. Not deployed or connected to production.
 
-## Current safety behavior
+## Actions
+- `bootstrap_student`: creates the authenticated user's student profile, idempotently.
+- `invite_staff`: TVET Admin invites instructors only to their own institution; Garage Admin invites mechanics only to their own garage; Global Admin can choose a school/garage.
+- `list_staff`: Garage Admin can list mechanics in their own garage.
+- `list_tenant_profiles`: TVET Admin can list students and instructors in their own institution.
+- `update_self_profile`: updates only the authenticated user's fullName, preferredLanguage, avatarFileId.
 
-- Browser-side profile creation is student-only.
-- Browser-side profile updates cannot change role, user ID, status, institution,
-  or garage ownership.
-- School Admin and Garage Admin staff-creation forms are disabled and clearly
-  report that no account/profile was created.
-- The policy helper derives a TVET Admin's institution or Garage Admin's garage
-  from the authenticated actor profile. Client-supplied tenant IDs are ignored
-  for those roles.
-- Global Admin may select a target tenant, but only instructor/mechanic target
-  roles are accepted.
+Identity is verified using Appwrite's injected `x-appwrite-user-jwt` against `/account`. Body actor IDs, client role fields, and tenant IDs from TVET/Garage Admins are not trusted.
 
-## Required before activation
+## Required configuration
+Runtime: Node.js 26. Entrypoint: `index.js`. Execute permission: `Any` (the function independently verifies the JWT).
 
-The real invitation endpoint must verify the Appwrite user JWT, load the actor
-profile server-side, enforce this policy, create an actual Appwrite Auth user,
-and create a profile with reviewed document permissions. It must also send a
-one-time activation/password-setup email and roll back the account/profile if
-delivery fails.
+Environment variables:
+- `APPWRITE_ENDPOINT`
+- `APPWRITE_PROJECT_ID`
+- `APPWRITE_DATABASE_ID`
+- `APPWRITE_API_KEY` — secret, newly rotated key only
+- `APPWRITE_APP_URL` — exact HTTPS frontend origin; recovery redirect must be allowed in Appwrite project settings
 
-The current Appwrite Function has only been inspected; its service scopes do
-not yet authorize the required user and profile writes. Email delivery and the
-profile read model/document permissions also need configuration and testing.
-Do not deploy this helper or enable the UI until those prerequisites are met.
+Execution key scopes: `users.write`, `databases.read`, `databases.write`.
+
+## Critical collection permission prerequisite
+The current `profiles` collection has collection-level `create("users")`. This lets any authenticated user bypass the Function and try to create an arbitrary role profile directly. Remove that collection-level create permission before enabling the frontend integration. The Function's server API key bypasses collection permissions. Do not grant client update permissions on profile documents; profile updates go through the field-allowlisted Function action.
+
+Profile document permissions created by this Function are read-only for the new user and the inviter. Tenant staff lists are returned by server-side role/scope-filtered actions.
+
+## Invitation flow
+The Function creates an Auth user with a cryptographically random temporary password, creates the scoped profile, then requests Appwrite Account Recovery to send a password-setup link to `/reset-password`. The temporary password is never returned or logged. If profile creation or recovery-email initiation fails, it best-effort deletes the new profile and Auth user.
+
+The frontend must implement `account.updateRecovery(userId, secret, password, passwordAgain)`. Appwrite's recovery redirect domain and built-in/custom email delivery must be configured before enabling invitations.
 
 ## Tests
-
-Run from this directory:
-
-```sh
-node --test test/authorization.test.js
-```
+`npm test` and `node --check index.js`. Unit tests are not a substitute for staging integration tests.
