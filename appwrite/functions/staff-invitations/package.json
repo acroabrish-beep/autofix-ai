@@ -4,5 +4,8 @@
   "private": true,
   "type": "module",
   "main": "index.js",
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check index.js && node --check authorization.js && node --check tablesdb.js"
+  }
 }
