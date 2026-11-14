@@ -138,7 +138,7 @@ async function serviceRequestDetails(actorProfile, requestId) {
 async function globalProfiles(actorProfile) {
   assertGlobalAdmin(actorProfile);
   const result = await call(`${tableRowsPath(databaseId, 'profiles')}?limit=100`);
-  const profiles = (result?.documents || []).map(p => ({
+  const profiles = (result?.rows || []).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email,
     phone: p.phone || '', specialization: p.specialization || '', role: p.role,
     institutionId: p.institutionId, garageId: p.garageId, status: p.status,
