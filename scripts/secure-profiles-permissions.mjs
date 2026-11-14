@@ -44,7 +44,7 @@ do {
 
   for (const document of documents) {
     const current = document.$permissions || [];
-    const readOnly = current.filter((permission) => /^read\\(\"user:[^\"]+\"\\)$/.test(permission));
+    const readOnly = current.filter((permission) => permission.startsWith('read("user:') && permission.endsWith('")'));
     if (document.userId && !readOnly.includes(`read("user:${document.userId}")`)) {
       readOnly.push(`read("user:${document.userId}")`);
     }
