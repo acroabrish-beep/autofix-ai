@@ -308,12 +308,14 @@ export const GlobalDashboard: React.FC = () => {
         location: institutionForm.location.trim(),
         type: institutionForm.type,
         adminEmail: institutionForm.adminEmail.trim(),
+        actorId: user?.$id,
       });
       setCreateInstitutionOpen(false);
       setInstitutionForm({ name: '', location: '', type: 'school', adminEmail: '' });
       await loadInstitutions();
       await loadUsers();
     } catch (err) {
+      console.error('Create institution failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to create institution.');
     } finally {
       setCreatingInstitution(false);

@@ -18,20 +18,29 @@ export async function runAdminAction(action: string, payload: Record<string, any
   );
 
   const statusCode = execution.responseStatusCode ?? 0;
+
+  const parseBody = () => {
+    if (!execution.responseBody) return null;
+    try {
+      return JSON.parse(execution.responseBody);
+    } catch {
+      return null;
+    }
+  };
+
+  const parsedBody = parseBody();
+
   if (execution.status === 'failed' || statusCode >= 400) {
-    throw new Error(execution.responseBody || 'Admin action failed.');
+    throw new Error(parsedBody?.error || execution.responseBody || 'Admin action failed.');
   }
 
   if (!execution.responseBody) {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(execution.responseBody);
-    if (parsed?.error) throw new Error(parsed.error);
-    return parsed;
-  } catch (error) {
-    if (error instanceof Error && error.message) throw error;
-    throw new Error('Invalid admin action response.');
+  if (parsedBody?.error) {
+    throw new Error(parsedBody.error);
   }
+
+  return parsedBody;
 }
