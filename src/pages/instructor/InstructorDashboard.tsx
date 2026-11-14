@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { storageService, BUCKETS } from '../../services/storage';
 import { Permission, Role } from 'appwrite';
@@ -62,10 +63,7 @@ export const InstructorDashboard: React.FC = () => {
     if (!institutionId) return;
 
     const [studentProfiles, progressDocs] = await Promise.all([
-      databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES, [
-        Query.equal('institutionId', institutionId),
-        Query.equal('role', 'student'),
-      ]),
+      profilesService.listTenantProfiles(),
       databaseService.listDocuments<LearningProgress>(COLLECTIONS.LEARNING_PROGRESS),
     ]);
 
@@ -76,7 +74,7 @@ export const InstructorDashboard: React.FC = () => {
     });
 
     setStudents(
-      studentProfiles.map((studentProfile) => {
+      studentProfiles.filter((profile) => profile.role === 'student').map((studentProfile) => {
         const values = progressByUser[studentProfile.userId] || [];
         const average =
           values.length > 0
