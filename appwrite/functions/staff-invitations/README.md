@@ -7,6 +7,7 @@ Dedicated Appwrite Function source. Not deployed or connected to production.
 - `invite_staff`: TVET Admin invites instructors only to their own institution; Garage Admin invites mechanics only to their own garage; Global Admin can choose a school/garage.
 - `list_staff`: Garage Admin can list mechanics in their own garage.
 - `list_tenant_profiles`: TVET Admin can list students and instructors in their own institution.
+- `list_global_profiles`: Global Admin can list profile summaries; the response includes a total count and currently returns the first 100 profiles.
 - `update_self_profile`: updates only the authenticated user's fullName, preferredLanguage, avatarFileId.
 
 Identity is verified using Appwrite's injected `x-appwrite-user-jwt` against `/account`. Body actor IDs, client role fields, and tenant IDs from TVET/Garage Admins are not trusted.
