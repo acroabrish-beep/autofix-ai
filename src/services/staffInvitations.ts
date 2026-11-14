@@ -12,8 +12,7 @@ export async function runStaffFunction<T>(
     functionId: STAFF_INVITATIONS_FUNCTION_ID,
     body: JSON.stringify({ action, ...(payload === undefined ? {} : { payload }) }),
     async: false,
-    path: '/',
-    method: 'POST',
+    xpath: '/',
     headers: { 'content-type': 'application/json' },
   });
   let response: { success?: boolean; data?: T; error?: string } = {};
