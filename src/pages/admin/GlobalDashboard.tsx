@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { runAdminAction } from '../../services/ai/adminActions';
 import { Application, UserProfile, School, Garage, AuditLog } from '../../types';
@@ -89,44 +90,44 @@ export const GlobalDashboard: React.FC = () => {
   const [creatingInstitution, setCreatingInstitution] = useState(false);
 
   const loadOverview = async () => {
-    const [schoolCount, garageCount, pendingApplications, userCount] = await Promise.all([
+    const [schoolCount, garageCount, pendingApplications, globalProfiles] = await Promise.all([
       databaseService.countDocuments(COLLECTIONS.SCHOOLS),
       databaseService.countDocuments(COLLECTIONS.GARAGES),
       databaseService.countDocuments(COLLECTIONS.APPLICATIONS, [
         Query.equal('status', 'pending'),
       ]),
-      databaseService.countDocuments(COLLECTIONS.PROFILES),
+      profilesService.listGlobalProfiles(),
     ]);
 
     setCounts({
       schools: schoolCount,
       garages: garageCount,
       applications: pendingApplications,
-      users: userCount,
+      users: globalProfiles.total,
     });
   };
 
   const loadApplications = async () => {
-    const [apps, profiles] = await Promise.all([
+    const [apps, globalProfiles] = await Promise.all([
       databaseService.listDocuments<Application>(COLLECTIONS.APPLICATIONS, [
         Query.equal('status', 'pending'),
         Query.orderDesc('$createdAt'),
       ]),
-      databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES),
+      profilesService.listGlobalProfiles(),
     ]);
 
     setApplications(apps);
 
     const nameMap: Record<string, string> = {};
-    profiles.forEach((profile) => {
+    globalProfiles.profiles.forEach((profile) => {
       nameMap[profile.userId] = profile.fullName || profile.email || profile.userId;
     });
     setApplicantNames(nameMap);
   };
 
   const loadUsers = async () => {
-    const result = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES);
-    setUsers(result);
+    const result = await profilesService.listGlobalProfiles();
+    setUsers(result.profiles);
   };
 
   const loadInstitutions = async () => {
