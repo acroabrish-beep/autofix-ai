@@ -147,6 +147,15 @@ export interface Garage extends Models.Document {
   status: string;
 }
 
+export interface CourseMaterial extends Models.Document {
+  title: string;
+  description: string;
+  fileId: string;
+  courseId: string;
+  institutionId: string;
+  instructorId: string;
+}
+
 export interface Submission extends Models.Document {
   assignmentId: string;
   institutionId?: string;

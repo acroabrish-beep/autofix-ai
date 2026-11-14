@@ -6,6 +6,7 @@ export const BUCKETS = {
   VEHICLES: 'vehicle-images',
   SERVICE_RECEIPTS: 'service-receipts',
   DIAGNOSTICS: 'diagnostics',
+  COURSE_MATERIALS: 'course-materials',
 };
 
 export const storageService = {
@@ -25,7 +26,7 @@ export const storageService = {
     return storage.getFileDownload(bucketId, fileId);
   },
 
-  async getFileView(bucketId: string, fileId: string) {
+  getFileView(bucketId: string, fileId: string) {
     return storage.getFileView(bucketId, fileId);
   },
 

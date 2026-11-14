@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { vehiclesService } from '../services/database/vehicles';
 import { diagnosticsService } from '../services/database/diagnostics';
+import { databaseService, COLLECTIONS, Query } from '../services/database';
+import { Permission, Role } from 'appwrite';
 import { serviceHistoryService } from '../services/database/serviceHistory';
 import { learningService } from '../services/database/learning';
 import { chatService } from '../services/database/chat';
@@ -36,7 +38,8 @@ import {
   MessageSquare,
   Send,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { VehicleProfile, DiagnosticSession, LearningProgress, ServiceRecord } from '../types';
 import { useStorage } from '../hooks/useStorage';
@@ -69,6 +72,17 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [reminders, setReminders] = useState<MaintenanceReminder[]>([]);
   const [feed, setFeed] = useState<EcosystemEvent[]>([]);
+
+  // --- Service request modal state ---
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+  const [requestVehicles, setRequestVehicles] = useState<VehicleProfile[]>([]);
+  const [requestGarages, setRequestGarages] = useState<any[]>([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [selectedGarageId, setSelectedGarageId] = useState('');
+  const [requestDescription, setRequestDescription] = useState('');
+  const [requestUrgency, setRequestUrgency] = useState('medium');
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
 
   // --- AI Chat state ---
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -164,6 +178,53 @@ export const Dashboard = () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [chatMessages, chatLoading]);
+
+  const openRequestModal = async () => {
+    setRequestError(null);
+    setRequestModalOpen(true);
+    setSelectedVehicleId(vehicles[0]?.$id || '');
+    setSelectedGarageId(profile?.garageId || '');
+    setRequestDescription('');
+    setRequestUrgency('medium');
+
+    try {
+      const garages = await databaseService.listDocuments<any>(COLLECTIONS.GARAGES);
+      setRequestGarages(garages);
+      if (!profile?.garageId && garages.length > 0) {
+        setSelectedGarageId(garages[0].$id);
+      }
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'Failed to load garages.');
+    }
+  };
+
+  const handleRequestMechanic = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedVehicleId || !requestDescription.trim()) return;
+
+    setRequestSubmitting(true);
+    setRequestError(null);
+    try {
+      await databaseService.createDocument(
+        COLLECTIONS.SERVICE_REQUESTS,
+        {
+          title: 'Mechanic Request',
+          description: `Urgency: ${requestUrgency}. ${requestDescription.trim()}`,
+          vehicleId: selectedVehicleId,
+          garageId: selectedGarageId || '',
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        },
+        [Permission.read(Role.users()), Permission.update(Role.users())]
+      );
+
+      setRequestModalOpen(false);
+    } catch (err) {
+      setRequestError(err instanceof Error ? err.message : 'Failed to create service request.');
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -312,8 +373,98 @@ export const Dashboard = () => {
                   <Button size="sm" className="gap-2 shadow-lg shadow-brand-blue/20" onClick={() => navigate('/diagnostics')}>
                      <Activity className="w-4 h-4" /> {t('dashboard.new_diagnostic')}
                   </Button>
+                  <Button size="sm" variant="outline" className="gap-2 bg-white" onClick={openRequestModal}>
+                     <Wrench className="w-4 h-4" /> Request Mechanic
+                  </Button>
                </div>
             </div>
+
+            {requestModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-brand-navy">Request a Mechanic</h3>
+                    <button type="button" onClick={() => setRequestModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {requestError && (
+                    <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+                      {requestError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleRequestMechanic} className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Vehicle</label>
+                      <select
+                        required
+                        value={selectedVehicleId}
+                        onChange={(e) => setSelectedVehicleId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:ring-2 focus:ring-brand-blue outline-none"
+                      >
+                        <option value="">Select vehicle</option>
+                        {vehicles.map((vehicle) => (
+                          <option key={vehicle.$id} value={vehicle.$id}>
+                            {vehicle.make} {vehicle.model} ({vehicle.year})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Garage</label>
+                      <select
+                        value={selectedGarageId}
+                        onChange={(e) => setSelectedGarageId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:ring-2 focus:ring-brand-blue outline-none"
+                      >
+                        <option value="">General request</option>
+                        {requestGarages.map((garage) => (
+                          <option key={garage.$id} value={garage.$id}>
+                            {garage.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Urgency</label>
+                      <select
+                        value={requestUrgency}
+                        onChange={(e) => setRequestUrgency(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:ring-2 focus:ring-brand-blue outline-none"
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-slate-700">Problem Description</label>
+                      <textarea
+                        required
+                        value={requestDescription}
+                        onChange={(e) => setRequestDescription(e.target.value)}
+                        placeholder="Describe the problem..."
+                        className="min-h-[120px] w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:ring-2 focus:ring-brand-blue outline-none"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button type="submit" className="flex-1" disabled={requestSubmitting || !selectedVehicleId}>
+                        {requestSubmitting ? 'Submitting...' : 'Submit Request'}
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => setRequestModalOpen(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {/* AI Assistant Chat */}
             <div className="mb-8 bg-white rounded-[32px] border shadow-xl overflow-hidden">

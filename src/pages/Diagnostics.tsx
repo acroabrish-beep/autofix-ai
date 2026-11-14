@@ -10,11 +10,26 @@ import { useDiagnostics } from '../hooks/useDiagnostics';
 import { Brain, History, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
 
 export const Diagnostics = () => {
+  const { t, i18n } = useTranslation();
   const { analyzeSymptoms, currentSession, loading, error, setCurrentSession } = useDiagnostics();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!currentSession?.result?.summary) return;
+    if (!('speechSynthesis' in window)) return;
+
+    const language = i18n.language || 'en';
+    const speechLanguage =
+      language === 'am' ? 'am-ET' : language === 'om' ? 'om-ET' : 'en-US';
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(currentSession.result.summary);
+    utterance.lang = speechLanguage;
+    window.speechSynthesis.speak(utterance);
+  }, [currentSession, i18n.language]);
 
   return (
     <div className="min-h-screen bg-slate-50">

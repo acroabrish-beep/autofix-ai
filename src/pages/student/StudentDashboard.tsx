@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import { learningService } from '../../services/database/learning';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { generateChatReply } from '../../services/ai/chat';
+import { storageService, BUCKETS } from '../../services/storage';
 import { Permission, Role } from 'appwrite';
-import { LearningModule, Assignment, Submission, Certificate } from '../../types';
+import { LearningModule, Assignment, Submission, Certificate, CourseMaterial } from '../../types';
 import {
   BookOpen,
   ClipboardList,
@@ -17,6 +19,8 @@ import {
   Send,
   X,
   AlertCircle,
+  Mic,
+  MicOff,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -29,6 +33,7 @@ type StudentTab = 'courses' | 'assignments' | 'tutor' | 'certificates';
 
 export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { user, profile, signOut } = useAuth();
 
   const institutionId = profile?.institutionId;
@@ -38,6 +43,7 @@ export const StudentDashboard: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [materials, setMaterials] = useState<CourseMaterial[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,23 +56,28 @@ export const StudentDashboard: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const [courseList, assignmentList] = await Promise.all([
+      const [courseList, assignmentList, materialList] = await Promise.all([
         learningService.listModules(),
         institutionId
           ? databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS, [
               Query.equal('institutionId', institutionId),
             ])
           : databaseService.listDocuments<Assignment>(COLLECTIONS.ASSIGNMENTS),
+        databaseService.listDocuments<CourseMaterial>(COLLECTIONS.COURSE_MATERIALS),
       ]);
       setCourses(courseList);
       setAssignments(assignmentList);
+      setMaterials(materialList);
 
       if (user) {
         const [submissionList, certificateList] = await Promise.all([
@@ -136,6 +147,64 @@ export const StudentDashboard: React.FC = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [chatMessages, chatLoading]);
 
+  const getSpeechLanguage = () => {
+    const language = i18n.language || 'en';
+    if (language === 'am') return 'am-ET';
+    if (language === 'om') return 'om-ET';
+    if (language === 'sid') return 'en-US';
+    return 'en-US';
+  };
+
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = getSpeechLanguage();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const toggleListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    setVoiceError(null);
+    const recognition = new SpeechRecognition();
+    recognition.lang = getSpeechLanguage();
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript || '')
+        .join('');
+      setChatInput(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      setVoiceError(event?.error || 'Microphone permission denied or unavailable.');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
+  };
+
   const handleSendTutorMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = chatInput.trim();
@@ -157,6 +226,7 @@ export const StudentDashboard: React.FC = () => {
         ...prev,
         { id: `local-${Date.now()}-ai`, role: 'assistant', content: reply },
       ]);
+      speakText(reply);
     } catch (err) {
       setChatError(err instanceof Error ? err.message : 'Failed to get AI response.');
     } finally {
@@ -285,6 +355,33 @@ export const StudentDashboard: React.FC = () => {
                         <p className="mt-2 text-sm text-slate-400">{course.description}</p>
                       </div>
                     ))
+                  )}
+
+                  {materials.length > 0 && (
+                    <div className="col-span-full rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                      <h3 className="mb-4 text-lg font-bold">Course Materials</h3>
+                      <div className="space-y-3">
+                        {materials.map((material) => (
+                          <div
+                            key={material.$id}
+                            className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3"
+                          >
+                            <div>
+                              <p className="text-sm font-medium">{material.title}</p>
+                              <p className="text-xs text-slate-400">{material.description}</p>
+                            </div>
+                            <a
+                              href={storageService.getFileView(BUCKETS.COURSE_MATERIALS, material.fileId)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-lg bg-brand-teal px-3 py-2 text-xs font-bold text-slate-950"
+                            >
+                              View / Download
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -448,11 +545,30 @@ export const StudentDashboard: React.FC = () => {
                     <div ref={chatEndRef} />
                   </div>
 
+                  {voiceError && (
+                    <div className="px-4 pt-3 text-xs text-red-300">{voiceError}</div>
+                  )}
+                  {isListening && (
+                    <div className="px-4 pt-3 text-xs text-brand-teal">Listening...</div>
+                  )}
+
                   <form
                     onSubmit={handleSendTutorMessage}
                     className="border-t border-slate-800 p-4"
                   >
                     <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={toggleListening}
+                        className={`inline-flex items-center justify-center rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
+                          isListening
+                            ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                            : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                        }`}
+                        aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+                      >
+                        {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                      </button>
                       <input
                         type="text"
                         value={chatInput}

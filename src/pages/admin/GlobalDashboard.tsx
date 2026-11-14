@@ -79,6 +79,14 @@ export const GlobalDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [createInstitutionOpen, setCreateInstitutionOpen] = useState(false);
+  const [institutionForm, setInstitutionForm] = useState({
+    name: '',
+    location: '',
+    type: 'school',
+    adminEmail: '',
+  });
+  const [creatingInstitution, setCreatingInstitution] = useState(false);
 
   const loadOverview = async () => {
     const [schoolCount, garageCount, pendingApplications, userCount] = await Promise.all([
@@ -289,6 +297,29 @@ export const GlobalDashboard: React.FC = () => {
     }
   };
 
+  const handleCreateInstitution = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCreatingInstitution(true);
+    setError(null);
+
+    try {
+      await runAdminAction('create_institution', {
+        name: institutionForm.name.trim(),
+        location: institutionForm.location.trim(),
+        type: institutionForm.type,
+        adminEmail: institutionForm.adminEmail.trim(),
+      });
+      setCreateInstitutionOpen(false);
+      setInstitutionForm({ name: '', location: '', type: 'school', adminEmail: '' });
+      await loadInstitutions();
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create institution.');
+    } finally {
+      setCreatingInstitution(false);
+    }
+  };
+
   const displayName = profile?.fullName || user?.name || user?.email || 'Admin';
 
   return (
@@ -372,8 +403,15 @@ export const GlobalDashboard: React.FC = () => {
 
               {activeTab === 'institutions' && (
                 <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-                  <div className="border-b border-slate-800 px-6 py-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 px-6 py-4">
                     <h3 className="text-lg font-bold">Schools & Garages</h3>
+                    <button
+                      type="button"
+                      onClick={() => setCreateInstitutionOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-4 py-2 text-sm font-bold text-slate-950"
+                    >
+                      Create New Institution
+                    </button>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[720px] text-left text-sm">
@@ -757,6 +795,73 @@ export const GlobalDashboard: React.FC = () => {
                   </div>
                 )}
             </>
+          )}
+
+          {createInstitutionOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold">Create New Institution</h3>
+                  <button
+                    type="button"
+                    onClick={() => setCreateInstitutionOpen(false)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateInstitution} className="space-y-4">
+                  <input
+                    required
+                    type="text"
+                    placeholder="Institution name"
+                    value={institutionForm.name}
+                    onChange={(e) =>
+                      setInstitutionForm((prev) => ({ ...prev, name: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                  />
+                  <input
+                    required
+                    type="text"
+                    placeholder="Location"
+                    value={institutionForm.location}
+                    onChange={(e) =>
+                      setInstitutionForm((prev) => ({ ...prev, location: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                  />
+                  <select
+                    value={institutionForm.type}
+                    onChange={(e) =>
+                      setInstitutionForm((prev) => ({ ...prev, type: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                  >
+                    <option value="school">School</option>
+                    <option value="garage">Garage</option>
+                  </select>
+                  <input
+                    required
+                    type="email"
+                    placeholder="Admin email"
+                    value={institutionForm.adminEmail}
+                    onChange={(e) =>
+                      setInstitutionForm((prev) => ({ ...prev, adminEmail: e.target.value }))
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                  />
+                  <button
+                    type="submit"
+                    disabled={creatingInstitution}
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                  >
+                    {creatingInstitution ? 'Creating...' : 'Create Institution'}
+                  </button>
+                </form>
+              </div>
+            </div>
           )}
         </main>
       </div>

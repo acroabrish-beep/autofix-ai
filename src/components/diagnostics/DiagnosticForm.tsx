@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { userVehiclesService } from '../../services/database/userVehicles';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserVehicle, DiagnosticRequest } from '../../types';
 import { Button } from '../ui/Button';
-import { Car, ChevronRight, AlertCircle, Loader2, Plus, Bluetooth } from 'lucide-react';
+import { Car, ChevronRight, AlertCircle, Loader2, Plus, Bluetooth, Mic, MicOff } from 'lucide-react';
 import { MOCK_OBD_DATA } from '../../data/mockOBDData';
 
 // Values stay in English because they are sent to the diagnostic model.
@@ -33,7 +33,7 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [vehicles, setVehicles] = useState<UserVehicle[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState(location.state?.vehicleId || '');
@@ -42,11 +42,64 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
   const [warningLights, setWarningLights] = useState<string[]>([]);
   const [timing, setTiming] = useState('Recently');
 
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+
   const simulationActive = description.startsWith('Simulated OBD-II Code:');
 
   const handleSimulateOBD = () => {
     const selected = MOCK_OBD_DATA[Math.floor(Math.random() * MOCK_OBD_DATA.length)];
     setDescription(`Simulated OBD-II Code: ${selected.code}. Symptoms: ${selected.symptom}`);
+  };
+
+  const getSpeechLanguage = () => {
+    const language = i18n.language || 'en';
+    if (language === 'am') return 'am-ET';
+    if (language === 'om') return 'om-ET';
+    return 'en-US';
+  };
+
+  const toggleListening = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceError('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    setVoiceError(null);
+    const recognition = new SpeechRecognition();
+    recognition.lang = getSpeechLanguage();
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0]?.transcript || '')
+        .join('');
+      setDescription(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      setVoiceError(event?.error || 'Microphone permission denied or unavailable.');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
   };
 
   useEffect(() => {
@@ -168,6 +221,16 @@ export const DiagnosticForm: React.FC<DiagnosticFormProps> = ({ onSubmit, loadin
         <p className="mb-4 text-xs text-slate-500">
           For educational demo purposes. No physical hardware required.
         </p>
+        {voiceError && <div className="mb-3 text-sm text-red-600">{voiceError}</div>}
+        {isListening && <div className="mb-3 text-sm text-brand-teal">Listening...</div>}
+
+        <div className="mb-3">
+          <Button type="button" variant="outline" size="sm" onClick={toggleListening} className="gap-2">
+            {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            {isListening ? 'Stop Listening' : 'Voice Input'}
+          </Button>
+        </div>
+
         <textarea
           required
           className="w-full min-h-[150px] p-6 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-brand-blue outline-none text-slate-700 placeholder:text-slate-400"

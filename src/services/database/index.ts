@@ -24,6 +24,7 @@ export const COLLECTIONS = {
   PROGRAMS: 'programs',
   CERTIFICATES: 'certificates',
   PAYMENTS: 'payments',
+  COURSE_MATERIALS: 'course_materials',
 };
 
 export const databaseService = {

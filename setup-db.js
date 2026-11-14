@@ -339,6 +339,20 @@ const COLLECTIONS = [
       { key: 'cost', size: 50 },
     ],
   },
+  {
+    id: 'course_materials',
+    name: 'Course Materials',
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
+    documentSecurity: true,
+    attributes: [
+      { key: 'title', size: 255 },
+      { key: 'description', size: 1000 },
+      { key: 'fileId', size: 255 },
+      { key: 'courseId', size: 255 },
+      { key: 'institutionId', size: 255 },
+      { key: 'instructorId', size: 255 },
+    ],
+  },
 ];
 // Set to true if every document must provide each attribute.
 const ATTRIBUTES_REQUIRED = false;

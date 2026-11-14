@@ -55,9 +55,14 @@ export const SchoolDashboard: React.FC = () => {
     phone: '',
   });
 
+  const [courses, setCourses] = useState<LearningModule[]>([]);
+  const [instructorAssignment, setInstructorAssignment] = useState({
+    instructorId: '',
+    courseId: '',
+  });
+
   const [departments, setDepartments] = useState<Department[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
-  const [courses, setCourses] = useState<LearningModule[]>([]);
   const [departmentName, setDepartmentName] = useState('');
   const [programForm, setProgramForm] = useState({
     name: '',
@@ -108,6 +113,11 @@ export const SchoolDashboard: React.FC = () => {
     setStudents(result);
   };
 
+  const loadCourses = async () => {
+    const result = await databaseService.listDocuments<LearningModule>(COLLECTIONS.LEARNING_MODULES);
+    setCourses(result);
+  };
+
   const loadDepartments = async () => {
     if (!institutionId) return;
     const result = await databaseService.listDocuments<Department>(COLLECTIONS.DEPARTMENTS, [
@@ -124,11 +134,6 @@ export const SchoolDashboard: React.FC = () => {
     setPrograms(result);
   };
 
-  const loadCourses = async () => {
-    const result = await databaseService.listDocuments<LearningModule>(COLLECTIONS.LEARNING_MODULES);
-    setCourses(result);
-  };
-
   const loadData = async () => {
     if (!institutionId) {
       setLoading(false);
@@ -143,6 +148,7 @@ export const SchoolDashboard: React.FC = () => {
         await loadCounts();
       } else if (activeTab === 'instructors') {
         await loadInstructors();
+        await loadCourses();
       } else if (activeTab === 'students') {
         await loadStudents();
       } else if (activeTab === 'academics') {
@@ -267,6 +273,25 @@ export const SchoolDashboard: React.FC = () => {
       await loadCourses();
     } catch (err) {
       setAcademicsError(err instanceof Error ? err.message : 'Failed to assign course.');
+    }
+  };
+
+  const handleAssignInstructorCourse = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!institutionId || !instructorAssignment.instructorId || !instructorAssignment.courseId) return;
+
+    try {
+      await databaseService.createDocument(COLLECTIONS.ASSIGNMENTS, {
+        title: 'Instructor Assignment',
+        description: 'Instructor assigned to this course by TVET Admin.',
+        courseId: instructorAssignment.courseId,
+        instructorId: instructorAssignment.instructorId,
+        institutionId,
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+      setInstructorAssignment({ instructorId: '', courseId: '' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to assign instructor.');
     }
   };
 
@@ -468,6 +493,51 @@ export const SchoolDashboard: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                    <h3 className="mb-4 text-lg font-bold">Assign Instructor to Course</h3>
+                    <form onSubmit={handleAssignInstructorCourse} className="grid gap-4 md:grid-cols-2">
+                      <select
+                        required
+                        value={instructorAssignment.instructorId}
+                        onChange={(e) =>
+                          setInstructorAssignment((prev) => ({ ...prev, instructorId: e.target.value }))
+                        }
+                        className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                      >
+                        <option value="">Select instructor</option>
+                        {instructors.map((instructor) => (
+                          <option key={instructor.$id} value={instructor.userId}>
+                            {instructor.fullName}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        required
+                        value={instructorAssignment.courseId}
+                        onChange={(e) =>
+                          setInstructorAssignment((prev) => ({ ...prev, courseId: e.target.value }))
+                        }
+                        className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                      >
+                        <option value="">Select course</option>
+                        {courses.map((course) => (
+                          <option key={course.$id} value={course.$id}>
+                            {course.title}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="md:col-span-2">
+                        <button
+                          type="submit"
+                          disabled={!institutionId}
+                          className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
+                        >
+                          Assign Instructor
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               )}
