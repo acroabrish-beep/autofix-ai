@@ -220,7 +220,7 @@ function App() {
         <Route
           path="/admin/*"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['global_admin']}>
               <GlobalDashboard />
             </ProtectedRoute>
           }
