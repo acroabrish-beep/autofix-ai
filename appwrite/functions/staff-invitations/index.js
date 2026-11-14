@@ -111,13 +111,18 @@ async function inviteStaff(account, actorProfile, raw) {
 }
 async function scopedProfiles(actorProfile, schoolProfiles = false) {
   let field, tenantId, role;
-  if (actorProfile.role === 'tvet_admin' && actorProfile.institutionId) {
+  let allowedRoles = [];
+  if (actorProfile.role === 'tvet_admin' && actorProfile.institutionId && schoolProfiles) {
+    field = 'institutionId'; tenantId = actorProfile.institutionId; allowedRoles = ['student', 'instructor'];
+  } else if (actorProfile.role === 'instructor' && actorProfile.institutionId && schoolProfiles) {
+    field = 'institutionId'; tenantId = actorProfile.institutionId; allowedRoles = ['student'];
+  } else if (actorProfile.role === 'tvet_admin' && actorProfile.institutionId) {
     field = 'institutionId'; tenantId = actorProfile.institutionId; role = 'instructor';
   } else if (actorProfile.role === 'garage_admin' && actorProfile.garageId && !schoolProfiles) {
     field = 'garageId'; tenantId = actorProfile.garageId; role = 'mechanic';
   } else throw Object.assign(new Error('Your account cannot list profiles for this tenant.'), { code: 'FORBIDDEN' });
   const result = await call(`/databases/${databaseId}/collections/profiles/documents?queries[]=${q(field, tenantId)}&limit=100`);
-  return (result?.documents || []).filter(p => schoolProfiles ? ['student', 'instructor'].includes(p.role) : p.role === role).map(p => ({
+  return (result?.documents || []).filter(p => schoolProfiles ? allowedRoles.includes(p.role) : p.role === role).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email, phone: p.phone || '',
     specialization: p.specialization || '', role: p.role, institutionId: p.institutionId,
     garageId: p.garageId, status: p.status,
