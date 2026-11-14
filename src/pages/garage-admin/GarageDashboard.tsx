@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
 import { UserProfile, ServiceRequest } from '../../types';
 import {
@@ -43,6 +44,7 @@ export const GarageDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
 
@@ -65,26 +67,19 @@ export const GarageDashboard: React.FC = () => {
   const loadCounts = async () => {
     if (!garageId) return;
 
-    const [mechanicCount, pendingCount] = await Promise.all([
-      databaseService.countDocuments(COLLECTIONS.PROFILES, [
-        Query.equal('garageId', garageId),
-        Query.equal('role', 'mechanic'),
-      ]),
+    const [mechanics, pendingCount] = await Promise.all([
+      profilesService.listStaff(),
       databaseService.countDocuments(COLLECTIONS.SERVICE_REQUESTS, [
         Query.equal('garageId', garageId),
         Query.equal('status', 'pending'),
       ]),
     ]);
-
-    setCounts({ mechanics: mechanicCount, pendingRequests: pendingCount });
+    setCounts({ mechanics: mechanics.length, pendingRequests: pendingCount });
   };
 
   const loadMechanics = async () => {
     if (!garageId) return;
-    const result = await databaseService.listDocuments<UserProfile>(COLLECTIONS.PROFILES, [
-      Query.equal('garageId', garageId),
-      Query.equal('role', 'mechanic'),
-    ]);
+    const result = await profilesService.listStaff();
     setMechanics(result);
   };
 
@@ -130,10 +125,28 @@ export const GarageDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const handleAddMechanic = (event: React.FormEvent) => {
+  const handleAddMechanic = async (event: React.FormEvent) => {
     event.preventDefault();
+    setFormError(null);
     setFormSuccess(null);
-    setFormError('Secure mechanic invitations are not configured yet. No mechanic account or profile was created.');
+    setCreating(true);
+    try {
+      await profilesService.inviteStaff({
+        fullName: mechanicForm.name,
+        email: mechanicForm.email,
+        phone: mechanicForm.phone,
+        specialization: mechanicForm.specialization,
+        role: 'mechanic',
+      });
+      setMechanicForm({ name: '', email: '', phone: '', specialization: '' });
+      setFormSuccess('Invitation email sent. The mechanic must set a password before signing in.');
+      await loadMechanics();
+      await loadCounts();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to send mechanic invitation.');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleRequestStatus = async (request: ServiceRequest, status: string) => {
@@ -396,15 +409,15 @@ export const GarageDashboard: React.FC = () => {
                         className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
                       <p className="md:col-span-2 text-xs text-slate-400">
-                        Staff invitations are temporarily unavailable until the secure server-side invitation and account-activation workflow is configured. No account is created by this form.
+                        An invitation email will be sent. The mechanic must use the link to set a password before signing in.
                       </p>
                       <div className="md:col-span-2">
                         <button
                           type="submit"
-                          disabled={true}
+                          disabled={creating}
                           className="inline-flex items-center gap-2 rounded-xl bg-brand-teal px-5 py-3 text-sm font-bold text-slate-950 transition-opacity disabled:opacity-50"
                         >
-                          <UserPlus className="h-4 w-4" />
+                          {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />
                           Register Mechanic
                         </button>
                       </div>
