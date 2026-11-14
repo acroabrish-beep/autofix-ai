@@ -60,3 +60,34 @@ test('Profile update rejects role-only or invalid language updates', async () =>
   assert.throws(() => sanitizeProfileUpdate({ role: 'global_admin' }), { code: 'INVALID_INPUT' });
   assert.throws(() => sanitizeProfileUpdate({ preferredLanguage: 'fr' }), { code: 'INVALID_INPUT' });
 });
+
+test('Instructor profile listing is limited to students in their own institution', async () => {
+  const { resolveProfileListScope } = await import('../authorization.js');
+  assert.deepEqual(resolveProfileListScope(
+    { userId: 'instructor-1', role: 'instructor', institutionId: 'school-A' }, 'school'
+  ), { field: 'institutionId', tenantId: 'school-A', roles: ['student'] });
+});
+test('TVET admin profile listing includes only its own institution users', async () => {
+  const { resolveProfileListScope } = await import('../authorization.js');
+  assert.deepEqual(resolveProfileListScope(
+    { userId: 'school-admin', role: 'tvet_admin', institutionId: 'school-A' }, 'school'
+  ), { field: 'institutionId', tenantId: 'school-A', roles: ['student', 'instructor'] });
+});
+test('Garage Admin profile listing is limited to mechanics in its own garage', async () => {
+  const { resolveProfileListScope } = await import('../authorization.js');
+  assert.deepEqual(resolveProfileListScope(
+    { userId: 'garage-admin', role: 'garage_admin', garageId: 'garage-A' }, 'staff'
+  ), { field: 'garageId', tenantId: 'garage-A', roles: ['mechanic'] });
+});
+test('Global profile listing requires global_admin', async () => {
+  const { assertGlobalAdmin } = await import('../authorization.js');
+  assertGlobalAdmin({ role: 'global_admin' });
+  assert.throws(() => assertGlobalAdmin({ role: 'tvet_admin' }), { code: 'FORBIDDEN' });
+});
+test('Garage customer lookup rejects requests belonging to another garage', async () => {
+  const { assertGarageRequestAccess } = await import('../authorization.js');
+  assertGarageRequestAccess({ role: 'garage_admin', garageId: 'garage-A' }, { garageId: 'garage-A' });
+  assert.throws(() => assertGarageRequestAccess(
+    { role: 'garage_admin', garageId: 'garage-A' }, { garageId: 'garage-B' }
+  ), { code: 'FORBIDDEN' });
+});
