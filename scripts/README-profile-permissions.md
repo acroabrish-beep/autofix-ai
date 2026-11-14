@@ -3,7 +3,7 @@
 This script is a dry-run by default. It removes client-side profile write paths that could otherwise bypass the JWT-verified staff Function.
 
 ## What it changes with --apply
-1. Removes every non-read permission from existing profile documents. It preserves read permissions and ensures each profile owner retains `read("user:<userId>")`.
+1. Removes every non-read permission from existing profile documents. It preserves only user-specific read permissions (not broad `read(\"users\")` access) and ensures each profile owner retains `read("user:<userId>")`.
 2. Removes collection-level `create(...)` permissions from the `profiles` collection. The server Function uses its API key and can still create profiles.
 
 ## Required rollout order
