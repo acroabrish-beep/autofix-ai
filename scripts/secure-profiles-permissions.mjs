@@ -30,7 +30,7 @@ async function call(path, options = {}) {
 
 const collectionPath = `/databases/${databaseId}/collections/profiles`;
 const collection = await call(collectionPath);
-const nextCollectionPermissions = (collection.$permissions || []).filter((permission) => !permission.startsWith('create('));
+const nextCollectionPermissions = (collection.$permissions || []).filter((permission) => !/^(create|update|delete)\\(/.test(permission));
 
 let cursor = null;
 let scanned = 0;
