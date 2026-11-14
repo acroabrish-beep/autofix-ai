@@ -23,7 +23,7 @@ export const ResetPassword: React.FC = () => {
     if (password !== passwordAgain) return setError('The passwords do not match.');
     setLoading(true);
     try {
-      await account.updateRecovery(userId, secret, password, passwordAgain);
+      await account.updateRecovery(userId, secret, password);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to set your password. Request a new invitation link.');
