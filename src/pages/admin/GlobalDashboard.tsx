@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
+import { runAdminAction } from '../../services/ai/adminActions';
 import { Application, UserProfile, School, Garage, AuditLog } from '../../types';
 import { Permission, Role } from 'appwrite';
 import {
@@ -197,37 +198,15 @@ export const GlobalDashboard: React.FC = () => {
     navigate('/');
   };
 
-  const logAudit = async (action: string, targetId: string, details: string) => {
-    try {
-      await databaseService.createDocument(
-        COLLECTIONS.AUDIT_LOGS,
-        {
-          actorId: user?.$id || 'unknown',
-          action,
-          targetId,
-          details,
-          timestamp: new Date().toISOString(),
-        },
-        [Permission.read(Role.users())]
-      );
-    } catch (err) {
-      console.error('Failed to write audit log:', err);
-    }
-  };
-
   const handleApplicationStatus = async (
     application: Application,
     status: 'approved' | 'rejected'
   ) => {
     setActionId(application.$id);
     try {
-      await databaseService.updateDocument(COLLECTIONS.APPLICATIONS, application.$id, {
-        status,
-      });
-      await logAudit(
-        `application_${status}`,
-        application.$id,
-        `${status} application ${application.$id}`
+      await runAdminAction(
+        status === 'approved' ? 'approve_application' : 'reject_application',
+        { applicationId: application.$id }
       );
       await loadApplications();
       await loadOverview();
@@ -241,14 +220,10 @@ export const GlobalDashboard: React.FC = () => {
   const handleUserRoleChange = async (profile: UserProfile, newRole: string) => {
     setActionId(profile.$id);
     try {
-      await databaseService.updateDocument(COLLECTIONS.PROFILES, profile.$id, {
+      await runAdminAction('change_role', {
+        userId: profile.userId,
         role: newRole,
       });
-      await logAudit(
-        'change_user_role',
-        profile.$id,
-        `Changed role from ${profile.role} to ${newRole}`
-      );
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user role.');
@@ -261,13 +236,9 @@ export const GlobalDashboard: React.FC = () => {
     const newStatus = profile.status === 'suspended' ? 'active' : 'suspended';
     setActionId(profile.$id);
     try {
-      await databaseService.updateDocument(COLLECTIONS.PROFILES, profile.$id, {
-        status: newStatus,
-      });
-      await logAudit(
-        'toggle_user_status',
-        profile.$id,
-        `${newStatus === 'suspended' ? 'Suspended' : 'Activated'} user ${profile.$id}`
+      await runAdminAction(
+        newStatus === 'suspended' ? 'suspend_user' : 'activate_user',
+        { userId: profile.userId }
       );
       await loadUsers();
     } catch (err) {
@@ -284,12 +255,11 @@ export const GlobalDashboard: React.FC = () => {
   ) => {
     setActionId(id);
     try {
-      await databaseService.updateDocument(collection, id, { status: newStatus });
-      await logAudit(
-        'toggle_institution_status',
+      await runAdminAction('set_institution_status', {
+        collectionId: collection,
         id,
-        `Set ${collection} ${id} to ${newStatus}`
-      );
+        status: newStatus,
+      });
       await loadInstitutions();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update institution status.');
