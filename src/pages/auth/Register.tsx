@@ -55,7 +55,7 @@ export const Register = () => {
       }
 
       // 1. Create the Appwrite account.
-      const createdAccount = await appwriteAuth.register(email, password, fullName);
+      await appwriteAuth.register(email, password, fullName);
 
       // 2. Immediately start a session so the new user is logged in.
       //    (SDK 26 renamed createEmailSession -> createEmailPasswordSession.)
