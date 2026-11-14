@@ -41,3 +41,22 @@ test('Profile permissions allow read only to new user and inviter', () => {
   assert.deepEqual(profilePermissions('new', 'inviter'), ['read("user:new")', 'read("user:inviter")']);
   assert.deepEqual(profilePermissions('new', 'new'), ['read("user:new")']);
 });
+
+test('Profile update accepts only safe self-edit fields', async () => {
+  const { sanitizeProfileUpdate } = await import('../authorization.js');
+  assert.deepEqual(sanitizeProfileUpdate({
+    fullName: '  New Name  ',
+    preferredLanguage: 'am',
+    avatarFileId: 'file-1',
+    role: 'global_admin',
+    institutionId: 'other-school',
+    garageId: 'other-garage',
+    status: 'active',
+    userId: 'another-user',
+  }), { fullName: 'New Name', preferredLanguage: 'am', avatarFileId: 'file-1' });
+});
+test('Profile update rejects role-only or invalid language updates', async () => {
+  const { sanitizeProfileUpdate } = await import('../authorization.js');
+  assert.throws(() => sanitizeProfileUpdate({ role: 'global_admin' }), { code: 'INVALID_INPUT' });
+  assert.throws(() => sanitizeProfileUpdate({ preferredLanguage: 'fr' }), { code: 'INVALID_INPUT' });
+});
