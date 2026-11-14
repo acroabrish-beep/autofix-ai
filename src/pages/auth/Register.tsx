@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { appwriteAuth } from '../../services/auth/appwriteAuth';
 import { account } from '../../lib/appwrite';
 import { isNetworkError } from '../../lib/isNetworkError';
-import { profilesService } from '../../services/database/profiles';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
@@ -62,21 +61,7 @@ export const Register = () => {
       //    (SDK 26 renamed createEmailSession -> createEmailPasswordSession.)
       await appwriteAuth.login(email, password);
 
-      // 3. Create the database profile. Permissions require an active
-      //    session, so this must happen after login.
-      try {
-        await profilesService.createProfile({
-          userId: createdAccount.$id,
-          fullName,
-          email,
-        });
-      } catch (profileError) {
-        // Don't block sign-up if the profile write fails; AuthContext will
-        // create/fetch a fallback profile.
-        console.warn('Profile creation failed:', profileError);
-      }
-
-      // 4. Hydrate the auth context and go straight to the dashboard.
+      // AuthContext creates the student profile through the JWT-verified Function.
       await refreshUser();
       navigate('/dashboard');
     } catch (err: unknown) {
