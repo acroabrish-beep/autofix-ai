@@ -128,7 +128,7 @@ async function scopedProfiles(actorProfile, schoolProfiles = false) {
     garageId: p.garageId, status: p.status,
   }));
 }
-async function serviceRequestOwner(actorProfile, requestId) {
+async function serviceRequestDetails(actorProfile, requestId) {
   if (actorProfile.role !== 'garage_admin' || !actorProfile.garageId) {
     throw Object.assign(new Error('Garage administrator access is required.'), { code: 'FORBIDDEN' });
   }
@@ -139,14 +139,13 @@ async function serviceRequestOwner(actorProfile, requestId) {
   if (request.garageId !== actorProfile.garageId) {
     throw Object.assign(new Error('This service request does not belong to your garage.'), { code: 'FORBIDDEN' });
   }
-  if (!request.vehicleId) return null;
+  if (!request.vehicleId) return { vehicle: null, owner: null };
   const vehicle = await call(`/databases/${databaseId}/collections/vehicles/documents/${encodeURIComponent(request.vehicleId)}`);
-  if (!vehicle.userId) return null;
+  if (!vehicle.userId) return { vehicle: { make: vehicle.make, model: vehicle.model, year: vehicle.year, engine: vehicle.engine }, owner: null };
   const owner = await profileFor(vehicle.userId);
-  if (!owner) return null;
   return {
-    $id: owner.$id, userId: owner.userId, fullName: owner.fullName,
-    email: owner.email, phone: owner.phone || '',
+    vehicle: { make: vehicle.make, model: vehicle.model, year: vehicle.year, engine: vehicle.engine },
+    owner: owner ? { $id: owner.$id, userId: owner.userId, fullName: owner.fullName, email: owner.email, phone: owner.phone || '' } : null,
   };
 }
 
@@ -190,7 +189,7 @@ export default async ({ req, res, error }) => {
     if (body.action === 'list_staff') return reply(res, { success: true, data: await scopedProfiles(actorProfile) });
     if (body.action === 'list_tenant_profiles') return reply(res, { success: true, data: await scopedProfiles(actorProfile, true) });
     if (body.action === 'list_global_profiles') return reply(res, { success: true, data: await globalProfiles(actorProfile) });
-    if (body.action === 'get_service_request_owner') return reply(res, { success: true, data: await serviceRequestOwner(actorProfile, body.payload?.requestId) });
+    if (body.action === 'get_service_request_details') return reply(res, { success: true, data: await serviceRequestDetails(actorProfile, body.payload?.requestId) });
     if (body.action === 'update_self_profile') return reply(res, { success: true, data: await updateOwnProfile(account, body.payload) });
     return reply(res, { error: 'Unsupported action.' }, 400);
   } catch (err) {
