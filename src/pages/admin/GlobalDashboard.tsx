@@ -308,7 +308,6 @@ export const GlobalDashboard: React.FC = () => {
         location: institutionForm.location.trim(),
         type: institutionForm.type,
         adminEmail: institutionForm.adminEmail.trim(),
-        actorId: user?.$id,
       });
       setCreateInstitutionOpen(false);
       setInstitutionForm({ name: '', location: '', type: 'school', adminEmail: '' });
