@@ -34,7 +34,7 @@ export const profilesService = {
   async listGlobalProfiles(): Promise<{ profiles: UserProfile[]; total: number }> {
     return await runStaffFunction<{ profiles: UserProfile[]; total: number }>('list_global_profiles');
   },
-  async getServiceRequestOwner(requestId: string): Promise<UserProfile | null> {
-    return await runStaffFunction<UserProfile | null>('get_service_request_owner', { requestId });
+  async getServiceRequestDetails(requestId: string): Promise<{ vehicle: { make?: string; model?: string; year?: number | string; engine?: string } | null; owner: UserProfile | null }> {
+    return await runStaffFunction('get_service_request_details', { requestId });
   },
 };
