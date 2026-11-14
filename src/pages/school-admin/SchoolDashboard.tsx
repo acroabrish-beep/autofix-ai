@@ -5,6 +5,7 @@ import { useRole } from '../../hooks/useRole';
 import { ID } from '../../lib/appwrite';
 import { profilesService } from '../../services/database/profiles';
 import { databaseService, COLLECTIONS, Query } from '../../services/database';
+import { Permission, Role } from 'appwrite';
 import { UserProfile, Department, Program, LearningModule } from '../../types';
 import {
   GraduationCap,
@@ -210,11 +211,15 @@ export const SchoolDashboard: React.FC = () => {
 
     setCreatingAcademic(true);
     try {
-      await databaseService.createDocument(COLLECTIONS.DEPARTMENTS, {
-        name: departmentName.trim(),
-        institutionId,
-        headId: '',
-      });
+      await databaseService.createDocument(
+        COLLECTIONS.DEPARTMENTS,
+        {
+          name: departmentName.trim(),
+          institutionId,
+          headId: '',
+        },
+        [Permission.read(Role.users())]
+      );
       setDepartmentName('');
       setAcademicsSuccess('Department created successfully.');
       await loadDepartments();
@@ -234,12 +239,16 @@ export const SchoolDashboard: React.FC = () => {
 
     setCreatingAcademic(true);
     try {
-      await databaseService.createDocument(COLLECTIONS.PROGRAMS, {
-        name: programForm.name.trim(),
-        departmentId: programForm.departmentId,
-        institutionId,
-        level: programForm.level,
-      });
+      await databaseService.createDocument(
+        COLLECTIONS.PROGRAMS,
+        {
+          name: programForm.name.trim(),
+          departmentId: programForm.departmentId,
+          institutionId,
+          level: programForm.level,
+        },
+        [Permission.read(Role.users())]
+      );
       setProgramForm({ name: '', departmentId: '', level: 'beginner' });
       setAcademicsSuccess('Program created successfully.');
       await loadPrograms();

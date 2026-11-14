@@ -149,6 +149,7 @@ export interface Garage extends Models.Document {
 
 export interface Submission extends Models.Document {
   assignmentId: string;
+  institutionId?: string;
   studentId: string;
   studentName: string;
   content: string;

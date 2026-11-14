@@ -110,6 +110,7 @@ export const StudentDashboard: React.FC = () => {
         COLLECTIONS.SUBMISSIONS,
         {
           assignmentId: submittingAssignment.$id,
+          institutionId: profile?.institutionId || '',
           studentId: user.$id,
           studentName: profile?.fullName || user.name || user.email,
           content: submissionContent.trim(),

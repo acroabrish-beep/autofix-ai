@@ -246,8 +246,8 @@ const COLLECTIONS = [
   {
     id: 'audit_logs',
     name: 'Audit Logs',
-    // Admin actions are logged here; admins can create and read entries.
-    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
+    // Only the server API key creates/reads audit logs. No client access.
+    permissions: [],
     documentSecurity: true,
     attributes: [
       { key: 'actorId', size: 255 },
@@ -283,10 +283,11 @@ const COLLECTIONS = [
   {
     id: 'submissions',
     name: 'Submissions',
-    permissions: [Permission.create(Role.users()), Permission.read(Role.users()), Permission.update(Role.users())],
+    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
     documentSecurity: true,
     attributes: [
       { key: 'assignmentId', size: 255 },
+      { key: 'institutionId', size: 255 },
       { key: 'studentId', size: 255 },
       { key: 'studentName', size: 255 },
       { key: 'content', size: 2000 },
@@ -313,7 +314,9 @@ const COLLECTIONS = [
   {
     id: 'payments',
     name: 'Payments',
-    permissions: [Permission.create(Role.users()), Permission.read(Role.users())],
+    // Only the server API key creates/updates payments. Clients can read
+    // their own payment documents through document-level permissions.
+    permissions: [Permission.read(Role.users())],
     documentSecurity: true,
     attributes: [
       { key: 'institutionId', size: 255 },
