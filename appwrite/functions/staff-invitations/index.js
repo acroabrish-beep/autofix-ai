@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { equalQuery, tableRowsPath, tableRowPath } from './tablesdb.js';
 import { authorizeStaffInvitation, validateInviteInput, profilePermissions, sanitizeProfileUpdate, resolveProfileListScope, assertGlobalAdmin, assertGarageRequestAccess } from './authorization.js';
 
 const endpoint = process.env.APPWRITE_ENDPOINT;
@@ -40,22 +41,22 @@ async function authenticatedAccount(req) {
   try { return await call('/account', { method: 'GET', headers: { 'X-Appwrite-JWT': jwt } }, false); }
   catch { return null; }
 }
-const q = (field, value) => encodeURIComponent(JSON.stringify({ method: 'equal', attribute: field, values: [String(value)] }));
+
 async function profileFor(userId) {
-  const result = await call(`/databases/${databaseId}/collections/profiles/documents?queries[]=${q('userId', userId)}&limit=1`);
-  return result?.documents?.[0] || null;
+  const result = await call(`${tableRowsPath(databaseId, 'profiles')}?queries[]=${equalQuery('userId', userId)}&limit=1`);
+  return result?.rows?.[0] || null;
 }
 async function tenantFor(collection, id) {
-  return call(`/databases/${databaseId}/collections/${collection}/documents/${encodeURIComponent(id)}`);
+  return call(tableRowPath(databaseId, collection, id));
 }
 async function createProfile(userId, data, inviterId) {
-  return call(`/databases/${databaseId}/collections/profiles/documents`, {
+  return call(tableRowsPath(databaseId, 'profiles'), {
     method: 'POST',
-    body: JSON.stringify({ documentId: userId, data, permissions: profilePermissions(userId, inviterId) }),
+    body: JSON.stringify({ rowId: userId, data, permissions: profilePermissions(userId, inviterId) }),
   });
 }
 async function removeProfile(userId) {
-  return call(`/databases/${databaseId}/collections/profiles/documents/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+  return call(tableRowPath(databaseId, 'profiles', userId), { method: 'DELETE' });
 }
 async function removeUser(userId) {
   return call(`/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
@@ -111,8 +112,8 @@ async function inviteStaff(account, actorProfile, raw) {
 }
 async function scopedProfiles(actorProfile, schoolProfiles = false) {
   const scope = resolveProfileListScope(actorProfile, schoolProfiles ? 'school' : 'staff');
-  const result = await call(`/databases/${databaseId}/collections/profiles/documents?queries[]=${q(scope.field, scope.tenantId)}&limit=100`);
-  return (result?.documents || []).filter(p => scope.roles.includes(p.role)).map(p => ({
+  const result = await call(`${tableRowsPath(databaseId, 'profiles')}?queries[]=${equalQuery(scope.field, scope.tenantId)}&limit=100`);
+  return (result?.rows || []).filter(p => scope.roles.includes(p.role)).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email, phone: p.phone || '',
     specialization: p.specialization || '', role: p.role, institutionId: p.institutionId,
     garageId: p.garageId, status: p.status,
@@ -122,10 +123,10 @@ async function serviceRequestDetails(actorProfile, requestId) {
   if (typeof requestId !== 'string' || !requestId) {
     throw Object.assign(new Error('Service request ID is required.'), { code: 'INVALID_INPUT' });
   }
-  const request = await call(`/databases/${databaseId}/collections/service_requests/documents/${encodeURIComponent(requestId)}`);
+  const request = await call(tableRowPath(databaseId, 'service_requests', requestId));
   assertGarageRequestAccess(actorProfile, request);
   if (!request.vehicleId) return { vehicle: null, owner: null };
-  const vehicle = await call(`/databases/${databaseId}/collections/vehicles/documents/${encodeURIComponent(request.vehicleId)}`);
+  const vehicle = await call(tableRowPath(databaseId, 'vehicles', request.vehicleId));
   if (!vehicle.userId) return { vehicle: { make: vehicle.make, model: vehicle.model, year: vehicle.year, engine: vehicle.engine }, owner: null };
   const owner = await profileFor(vehicle.userId);
   return {
@@ -136,7 +137,7 @@ async function serviceRequestDetails(actorProfile, requestId) {
 
 async function globalProfiles(actorProfile) {
   assertGlobalAdmin(actorProfile);
-  const result = await call(`/databases/${databaseId}/collections/profiles/documents?limit=100`);
+  const result = await call(`${tableRowsPath(databaseId, 'profiles')}?limit=100`);
   const profiles = (result?.documents || []).map(p => ({
     $id: p.$id, userId: p.userId, fullName: p.fullName, email: p.email,
     phone: p.phone || '', specialization: p.specialization || '', role: p.role,
@@ -150,7 +151,7 @@ async function updateOwnProfile(account, raw) {
   if (!profile) throw Object.assign(new Error('Profile not found.'), { code: 'NOT_FOUND' });
   const data = sanitizeProfileUpdate(raw);
   data.updatedAt = new Date().toISOString();
-  return call(`/databases/${databaseId}/collections/profiles/documents/${encodeURIComponent(profile.$id)}`, {
+  return call(tableRowPath(databaseId, 'profiles', profile.$id), {
     method: 'PATCH', body: JSON.stringify({ data }),
   });
 }
