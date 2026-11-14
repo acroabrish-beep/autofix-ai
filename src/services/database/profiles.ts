@@ -31,4 +31,7 @@ export const profilesService = {
   async listTenantProfiles(): Promise<UserProfile[]> {
     return await runStaffFunction<UserProfile[]>('list_tenant_profiles');
   },
+  async listGlobalProfiles(): Promise<{ profiles: UserProfile[]; total: number }> {
+    return await runStaffFunction<{ profiles: UserProfile[]; total: number }>('list_global_profiles');
+  },
 };
